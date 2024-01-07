@@ -41,6 +41,9 @@ MOUSE_PRESS = "pressed"
 TIMESTAMP = "timestamp"
 
 END_KEY = keyboard.Key.f9.name
+PAUSE_KEY = keyboard.Key.f8.name
+
+MAX_SESSION_SIZE = 4 * 60 * 15  # a session size should only be 15 minutes.
 
 SCREENSHOT_SIZE = (400, 400)
 FPS = 250
@@ -49,6 +52,7 @@ MAX_DATA = int(10E5)
 # gloabl
 
 running = True
+paused = False
 
 # utils
 
@@ -74,6 +78,62 @@ def can_json_encode(obj: Any) -> bool:
         return False
     return True
 
+def generate_session_directories(session: str) -> None:
+    if not os.path.exists("data"):
+        os.mkdir("data")
+    if not os.path.exists(f"data/{session}"):
+        os.mkdir(f"data/{session}")
+    if not os.path.exists(f"data/{session}/screenshots"):
+        os.mkdir(f"data/{session}/screenshots")
+    if not os.path.exists(f"data/{session}/events"):
+        os.mkdir(f"data/{session}/events")
+
+def update_sessions(old_session: str) -> str:
+    """
+    Creates new session with directory and updates info.json in old and new sessions
+    Returns new session id
+    """
+    new_session = get_session_name()
+    generate_session_directories(new_session)
+    
+    info = {}
+    if os.path.exists(f"data/{old_session}/info.json"):
+        with open(f"data/{old_session}/info.json", "r") as f:
+            info = json.load(f)
+    else:
+        info["last_session"] = None
+        
+    info["next_session"] = new_session
+
+    with open(f"data/{old_session}/info.json", "w") as f:
+        json.dump(info, f)
+        
+    with open(f"data/{new_session}/info.json", "w") as f:
+            info = {
+                "last_session": old_session,
+                "next_session": None,
+            }
+
+            json.dump(info, f)
+
+    print(f"session updated at {datetime.now()}. {old_session} -> {new_session}")
+    
+    return new_session
+
+
+# pause, end funcs
+
+def end() -> None:
+    global running
+    running = False
+
+    print(f"session ended at {datetime.now()}")
+
+def pause_play() -> None:
+    global paused
+    paused = not paused
+
+    print(f"session {'paused' if paused else 'played'} at {datetime.now()}")
 
 # screen capture code - mss handles the brunt force of this
 
@@ -109,17 +169,21 @@ def log_key_press(key: Key, data: List[Dict[str, str]], mutex: Lock) -> bool:
     if isinstance(key, keyboard.Key):
         key = key.name
 
+    # returning false cancels the listener
+    if key == END_KEY:
+        end()
+
+        return False
+    elif key == PAUSE_KEY:
+        pause_play()
+
+        return True
+
     with mutex:
         data.append(create_key_log(
             type=KEY_DOWN,
             key=key,
         ))
-
-    # returning false cancels the listener
-    if key == END_KEY:
-        global running
-        running = False
-        return False
     return True
 
 def log_key_release(key: Key, data: List[Dict[str, Any]], mutex: Lock) -> bool:
@@ -232,16 +296,8 @@ def start_mouse_listener(data: List[Dict[str, str]], mutex: Lock) -> mouse.Liste
 
 
 if __name__ == "__main__":
-    session = get_session_name()
-
-    if not os.path.exists("data"):
-        os.mkdir("data")
-    if not os.path.exists(f"data/{session}"):
-        os.mkdir(f"data/{session}")
-    if not os.path.exists(f"data/{session}/screenshots"):
-        os.mkdir(f"data/{session}/screenshots")
-    if not os.path.exists(f"data/{session}/events"):
-        os.mkdir(f"data/{session}/events")
+    session, session_counter = get_session_name(), 0
+    generate_session_directories(session)
     
     data, last_entry, mutex = [], 0, Lock()
     last_capture = milli()
@@ -254,16 +310,22 @@ if __name__ == "__main__":
 
     while running:
         new_capture = milli()
+
+        if paused:
+            last_capture = new_capture
+            data.clear()
+
         if new_capture - last_capture >= FPS:
             new_entry = None
             with mutex:
                 new_entry = len(data)
-
                 if new_entry >= MAX_DATA:
                     important_data = data[last_entry:new_entry]
 
                     data.clear()
                     data.extend(important_data)
+
+                    last_entry, new_entry = 0, len(data)
             
             if new_entry - last_entry > 0:
                 with open(f"data/{session}/events/{milli()}.json", "a") as f:
@@ -278,6 +340,10 @@ if __name__ == "__main__":
             take_screenshot(filename=f"data/{session}/screenshots/{new_capture}.png", size=SCREENSHOT_SIZE)
 
             last_capture = new_capture
+            session_counter += 1
+
+            if session_counter >= MAX_SESSION_SIZE:
+                session, session_counter = update_sessions(session), 0
 
     mouse_listener.stop()
     keyboard_listener.stop()
