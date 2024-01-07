@@ -12,9 +12,11 @@ Currently this repo has only implemented the data capture and heuristic bot (alb
 `
 pip installs -r requirements.txt
 `
+
 `
 python scripts/capture.py
 `
+
 After 15 seconds, the script will begin taking screenshots and recording keystrokes and mouse positions. The capture data will be saved inside the data folder. To turn off the capture, press f9.
 
 All sessions are assigned uniquely hashed names from the POSIX time and machine MAC. Thus, data contributors can merge data by simply pushing the generated changes to github.
