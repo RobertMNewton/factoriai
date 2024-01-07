@@ -1,0 +1,11 @@
+mss==9.0.1
+pillow==10.2.0
+pynput==1.7.6
+pyobjc-core==10.1
+pyobjc-framework-ApplicationServices==10.1
+pyobjc-framework-Cocoa==10.1
+pyobjc-framework-CoreText==10.1
+pyobjc-framework-Quartz==10.1
+setuptools==68.2.2
+six==1.16.0
+wheel==0.41.2
