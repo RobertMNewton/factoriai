@@ -1,6 +1,10 @@
 import os
 import json
-from typing import List, Optional, Dict
+
+from torch import Tensor
+from torchvision import read_image
+
+from typing import List, Optional, Dict, Iterable, Tuple, Union
 
 
 def get_sessions(dir: str = "data") -> List[List[str]]:
@@ -65,4 +69,31 @@ def get_sessions(dir: str = "data") -> List[List[str]]:
                 res.append([session_id])
     return res
 
+def load_metadata(session_id: str, dir: str = "data") -> dict:
+    res = None
+    with open(f"{dir}/{session_id}/metadata.json", "r") as f:
+        res = json.load(f)
 
+    return res
+
+def load_screenshot(session_id: str, timestamp: Union[int, str], dir: str = "data") -> Tensor:
+    return read_image(f"{dir}/{session_id}/screenshots/{timestamp}.png")
+
+def load_events(session_id: str, timestamp: Union[int, str], dir: str = "data") -> Tensor:
+    pass
+
+def load_data(session: List[str], dir: str = "data") -> Iterable[Tensor, Tensor]:
+    for session_id in session:
+        meta_data = load_metadata(session_id)
+
+        screenshot_ts_l = sorted([int(s.strip(".png")) for s in os.listdir(f"{dir}/{session_id}/screenshots")])
+        event_ts_l = iter(sorted([int(s.strip(".png")) for s in os.listdir(f"{dir}/{session_id}/screenshots")]))
+
+        event_ts = next(event_ts_l)
+        for screenshot_ts in screenshot_ts_l:
+            # this is still generic. Events loading needs to be implemented
+            if screenshot_ts - (meta_data["fps"] / 2) <= event_ts <= screenshot_ts + (meta_data["fps"] / 2):
+                yield load_screenshot(session_id, screenshot_ts), load_events(session_id, screenshot_ts)
+                screenshot_ts = next(screenshot_ts_l)
+            else:
+                yield load_screenshot(session_id, screenshot_ts), load_events(session_id, screenshot_ts)

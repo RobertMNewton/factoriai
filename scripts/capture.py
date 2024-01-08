@@ -14,7 +14,8 @@ from functools import partial
 from datetime import datetime
 from hashlib import sha256
 
-from pynput import keyboard, mouse
+import pynput
+from pynput import keyboard, mouse, monitor
 from pynput.keyboard import Key
 
 from typing import List, Optional, Dict, Any, Tuple
@@ -88,6 +89,18 @@ def generate_session_directories(session: str) -> None:
     if not os.path.exists(f"data/{session}/events"):
         os.mkdir(f"data/{session}/events")
 
+def log_metadata(session: str) -> None:
+    with open(f"data/{session}/metadata.json", "w") as f:
+        metadata = {
+            "fps": FPS,
+            "monitor size": mss.mss().monitors[1],
+        }
+
+        json.dump(
+            obj=metadata,
+            fp=f,
+        )
+
 def update_sessions(old_session: str) -> str:
     """
     Creates new session with directory and updates info.json in old and new sessions
@@ -115,6 +128,8 @@ def update_sessions(old_session: str) -> str:
             }
 
             json.dump(info, f)
+
+    log_metadata(new_session)
 
     print(f"session updated at {datetime.now()}. {old_session} -> {new_session}")
     
@@ -298,6 +313,7 @@ def start_mouse_listener(data: List[Dict[str, str]], mutex: Lock) -> mouse.Liste
 if __name__ == "__main__":
     session, session_counter = get_session_name(), 0
     generate_session_directories(session)
+    log_metadata(session)
     
     data, last_entry, mutex = [], 0, Lock()
     last_capture = milli()
@@ -314,6 +330,7 @@ if __name__ == "__main__":
         if paused:
             last_capture = new_capture
             data.clear()
+            last_entry = 0
 
         if new_capture - last_capture >= FPS:
             new_entry = None
@@ -328,7 +345,7 @@ if __name__ == "__main__":
                     last_entry, new_entry = 0, len(data)
             
             if new_entry - last_entry > 0:
-                with open(f"data/{session}/events/{milli()}.json", "a") as f:
+                with open(f"data/{session}/events/{new_capture}.json", "w") as f:
                     json.dump(
                         obj=data[last_entry:new_entry],
                         fp=f,
