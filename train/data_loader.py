@@ -1,10 +1,13 @@
 import os
 import json
 
+import torch
 from torch import Tensor
 from torchvision import read_image
 
 from typing import List, Optional, Dict, Iterable, Tuple, Union
+
+from ..scripts import capture
 
 
 def get_sessions(dir: str = "data") -> List[List[str]]:
@@ -79,10 +82,21 @@ def load_metadata(session_id: str, dir: str = "data") -> dict:
 def load_screenshot(session_id: str, timestamp: Union[int, str], dir: str = "data") -> Tensor:
     return read_image(f"{dir}/{session_id}/screenshots/{timestamp}.png")
 
-def load_events(session_id: str, timestamp: Union[int, str], dir: str = "data") -> Tensor:
-    pass
+def load_events(session_id: str, timestamp: Union[int, str], keymap: Dict[str, int], win_size: Tuple[int, int], dir: str = "data") -> Tensor:
+    keystroke_encoding, mouse_pos = torch.zeros((max(keymap.values()), 2)), (0, 0)
 
-def load_data(session: List[str], dir: str = "data") -> Iterable[Tensor, Tensor]:
+    events = None
+    with open(f"{dir}/{session_id}/events/{timestamp}.json", "r") as f:
+        events = json.load(f)
+    
+    for event in events:
+        if event[capture.EVENT_TYPE] in [capture.KEY_DOWN, capture.KEY_UP]:
+            keystroke_ix, press = keymap[capture.KEY_VALUE], 1 if event[capture.EVENT_TYPE] == capture.KEY_DOWN else 0
+            keystroke_encoding[keystroke_ix, press] = 1
+
+
+
+def load_data(session: List[str], keymap: Dict[str, int], dir: str = "data") -> Iterable[Tensor, Tensor]:
     for session_id in session:
         meta_data = load_metadata(session_id)
 

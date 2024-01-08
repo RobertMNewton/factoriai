@@ -193,8 +193,6 @@ def log_key_press(key: Key, data: List[Dict[str, str]], mutex: Lock) -> bool:
     # returning false cancels the listener
     if key == END_KEY:
         end()
-
-        return False
     elif key == PAUSE_KEY:
         pause_play()
 
@@ -371,5 +369,7 @@ if __name__ == "__main__":
 
     mouse_listener.stop()
     keyboard_listener.stop()
+
+    sleep(2)
 
         
