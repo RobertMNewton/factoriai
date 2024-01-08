@@ -2,6 +2,7 @@ import mss
 import os
 import uuid
 import json
+import simpleaudio as sa
 
 import threading
 from threading import Lock
@@ -15,7 +16,7 @@ from datetime import datetime
 from hashlib import sha256
 
 import pynput
-from pynput import keyboard, mouse, monitor
+from pynput import keyboard, mouse
 from pynput.keyboard import Key
 
 from typing import List, Optional, Dict, Any, Tuple
@@ -54,6 +55,8 @@ MAX_DATA = int(10E5)
 
 running = True
 paused = False
+
+play_sound = sa.WaveObject.from_wave_file("assets/audio/play-pause.wav")
 
 # utils
 
@@ -132,6 +135,7 @@ def update_sessions(old_session: str) -> str:
     log_metadata(new_session)
 
     print(f"session updated at {datetime.now()}. {old_session} -> {new_session}")
+    play_sound.play()
     
     return new_session
 
@@ -143,12 +147,14 @@ def end() -> None:
     running = False
 
     print(f"session ended at {datetime.now()}")
+    play_sound.play()
 
 def pause_play() -> None:
     global paused
     paused = not paused
 
     print(f"session {'paused' if paused else 'played'} at {datetime.now()}")
+    play_sound.play()
 
 # screen capture code - mss handles the brunt force of this
 
@@ -321,6 +327,7 @@ if __name__ == "__main__":
     sleep(5)
 
     print(f"starting new capture session: {session}")
+    play_sound.play()
     
     keyboard_listener, mouse_listener = start_key_listener(data, mutex), start_mouse_listener(data, mutex)
 
