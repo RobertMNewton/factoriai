@@ -82,18 +82,36 @@ def load_metadata(session_id: str, dir: str = "data") -> dict:
 def load_screenshot(session_id: str, timestamp: Union[int, str], dir: str = "data") -> Tensor:
     return read_image(f"{dir}/{session_id}/screenshots/{timestamp}.png")
 
-def load_events(session_id: str, timestamp: Union[int, str], keymap: Dict[str, int], win_size: Tuple[int, int], dir: str = "data") -> Tensor:
-    keystroke_encoding, mouse_pos = torch.zeros((max(keymap.values()), 2)), (0, 0)
+def load_events(session_id: str, timestamp: Union[int, str], keymap: Dict[str, int], win_size: Tuple[int, int], keystroke_encoding: Optional[Tensor] = None, dir: str = "data") -> Tuple[Tensor, Optional[List[str]]]:
+    if keystroke_encoding is None:
+        size = max(keymap.values())
+        keystroke_encoding = torch.cat(
+            tensors=(
+                torch.zeros((size, 1)),
+                torch.ones((size, 1)),
+            ),
+            dim=-1
+        )
+
+    mouse_pos = (0, 0)
 
     events = None
     with open(f"{dir}/{session_id}/events/{timestamp}.json", "r") as f:
         events = json.load(f)
     
+
+    repeats = {}
     for event in events:
         if event[capture.EVENT_TYPE] in [capture.KEY_DOWN, capture.KEY_UP]:
-            keystroke_ix, press = keymap[capture.KEY_VALUE], 1 if event[capture.EVENT_TYPE] == capture.KEY_DOWN else 0
-            keystroke_encoding[keystroke_ix, press] = 1
+            keystroke_ix = keymap[capture.KEY_VALUE]
+            keystroke_encoding[keystroke_ix] = Tensor([1, 0]) if event[capture.EVENT_TYPE] == capture.KEY_DOWN else Tensor([0, 1])
 
+            if keymap[capture.KEY_VALUE] in repeats:
+                keymap[capture.KEY_VALUE] += 1
+            else:
+                keymap[capture.KEY_VALUE] = 1
+        else:
+            
 
 
 def load_data(session: List[str], keymap: Dict[str, int], dir: str = "data") -> Iterable[Tensor, Tensor]:
