@@ -2,6 +2,8 @@ from torch import nn, Tensor
 from torch.nn import Module
 from typing import Tuple
 
+from src.model.vision_module import VisionModule
+
 
 class Model(Module):
     """
@@ -10,7 +12,7 @@ class Model(Module):
     """
     def __init__(
             self,
-            vision_encoder:     Module,
+            vision_encoder:     VisionModule,
             memory_network:      Module,
             action_network:      Module,
             delay_network:       Module,
