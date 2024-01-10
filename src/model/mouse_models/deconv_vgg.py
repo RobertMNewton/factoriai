@@ -60,6 +60,9 @@ class DeconvVGG(Module):
 
         self.model = nn.Sequential(*self.model)
         self.forward = self.model
+    
+    def get_size(self) -> int:
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 
 class DeconvVGG11(DeconvVGG):

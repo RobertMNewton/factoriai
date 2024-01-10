@@ -41,6 +41,7 @@ def _compute_output_dims(*vgg_layers, input_dims: Tuple[int, int, int]) -> Tuple
     return c, h, w
 
 
+
 class VGG(Module):
     """
     VGG network as described in https://arxiv.org/pdf/1409.1556.pdf. The Output is an encoding as opposed to a classification.
@@ -61,6 +62,9 @@ class VGG(Module):
 
         self.model = nn.Sequential(*self.model)
         self.forward = self.model
+    
+    def get_size(self) -> int:
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 
 class VGG11(VGG):
