@@ -39,7 +39,7 @@ def _compute_output_dims(*vgg_layers, input_dims: Tuple[int, int, int]) -> Tuple
         h = out_dims(in_dims=h, padding=0, dilation=1, kernel_size=2, stride=2)
         c = vgg_layer[2]
 
-    return h, w, c
+    return c, h, w
 
 
 class VGG(Module):
@@ -55,7 +55,7 @@ class VGG(Module):
             self.model.append(*_vgg_layer(*vgg_layer))
         
         mlp_input_dims = _compute_output_dims(vgg_layers, input_dims)
-        mlp_input_dims = mlp_input_dims[0] * mlp_input_dims[1]
+        mlp_input_dims = mlp_input_dims[0] * mlp_input_dims[1] * mlp_input_dims[2]
 
         self.model.append(nn.Flatten())
         self.model.append(_mlp_layer(mlp_input_dims, mlp_feature_dims, mlp_output_dims))
