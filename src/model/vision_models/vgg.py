@@ -35,8 +35,8 @@ def _compute_output_dims(*vgg_layers, input_dims: Tuple[int, int, int]) -> Tuple
 
     for vgg_layer in vgg_layer:
         # the dims are only reduced by the max pooling in a VGG due to the padding in the convolutions
-        w = out_dims(in_dims=w, padding=1, dilation=1, kernel_size=2, stride=2)
-        h = out_dims(in_dims=h, padding=1, dilation=1, kernel_size=2, stride=2)
+        w = out_dims(in_dims=w, padding=0, dilation=1, kernel_size=2, stride=2)
+        h = out_dims(in_dims=h, padding=0, dilation=1, kernel_size=2, stride=2)
         c = vgg_layer[2]
 
     return h, w, c
