@@ -74,8 +74,8 @@ class VGG11(VGG):
         (3, 512, 512, 2),
     ]
     def __init__(self, mlp_feature_dims: int = 4096, mlp_output_dims: int = 4096, mlp_depth = 2, input_dims: Tuple[int, int] = (400, 400)):
-        super(VGG16, self).__init__(
-            *VGG16.CONFIG,
+        super(VGG11, self).__init__(
+            *VGG11.CONFIG,
             mlp_feature_dims=mlp_feature_dims,
             mlp_output_dims=mlp_output_dims,
             mlp_depth=mlp_depth,
@@ -93,8 +93,8 @@ class VGG13(VGG):
         (3, 512, 512, 2),
     ]
     def __init__(self, mlp_feature_dims: int = 4096, mlp_output_dims: int = 4096, mlp_depth = 2, input_dims: Tuple[int, int] = (400, 400)):
-        super(VGG16, self).__init__(
-            *VGG16.CONFIG,
+        super(VGG13, self).__init__(
+            *VGG13.CONFIG,
             mlp_feature_dims=mlp_feature_dims,
             mlp_output_dims=mlp_output_dims,
             mlp_depth=mlp_depth,
@@ -121,7 +121,7 @@ class VGG16(VGG):
         )
 
 
-class VGG16(VGG):
+class VGG19(VGG):
     # tuples are organised as (kernel_size, input_channels, feature_channels, depth)
     CONFIG = [
         (3, 3, 64, 2),
@@ -131,8 +131,8 @@ class VGG16(VGG):
         (3, 512, 512, 4),
     ]
     def __init__(self, mlp_feature_dims: int = 4096, mlp_output_dims: int = 4096, mlp_depth = 2, input_dims: Tuple[int, int] = (400, 400)):
-        super(VGG16, self).__init__(
-            *VGG16.CONFIG,
+        super(VGG19, self).__init__(
+            *VGG19.CONFIG,
             mlp_feature_dims=mlp_feature_dims,
             mlp_output_dims=mlp_output_dims,
             mlp_depth=mlp_depth,
