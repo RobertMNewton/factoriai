@@ -2,7 +2,7 @@ import torch
 from torch import nn, Tensor
 from torch.nn import Module, TransformerDecoder, TransformerDecoderLayer
 
-from typing import Optional
+from typing import Optional, Tuple
 
 
 def _transformer_decoder(feature_dim: int, attn_heads: int, depth: int = 12, mlp_dim: int = 2048, norm: Optional[Module] = None) -> TransformerDecoder:
@@ -20,7 +20,13 @@ def _transformer_decoder(feature_dim: int, attn_heads: int, depth: int = 12, mlp
         norm=norm,
     )
 
+def _fc_layer(input_dims: int, output_dims: int, activation: Module = nn.ReLU) -> Tuple[Module, Module]:
+    return nn.Linear(input_dims, output_dims), activation()
 
+def _mlp_layer(input_dims: int, feature_dims: int, output_dims: int, depth: int = 2, activation: Module = nn.ReLU) -> Module:
+    return nn.Sequential(*([_fc_layer(input_dims, feature_dims, activation=activation)] \
+        + [_fc_layer(feature_dims, feature_dims, activation=activation) for _ in range(depth)] \
+        + [_fc_layer(feature_dims, output_dims, activation=activation)]))
 
 
 class TransformerMemory(Module):
@@ -29,6 +35,7 @@ class TransformerMemory(Module):
             self,
             input_feature_dims: int,
             output_feature_dims: int,
+            projection_feature_dims: int,
             memory_feature_dims: int,
             memory_size: int = 256,
             decoder_depth: int = 12,
@@ -46,9 +53,10 @@ class TransformerMemory(Module):
             norm=decoder_norm,
         )
 
-        # could probably use an MLP here instead for learning more sophisticated projections.
-        self.linear_projection_in = nn.Linear(input_feature_dims, memory_feature_dims, bias=False)
-        self.linear_projection_out = nn.Linear(memory_feature_dims, output_feature_dims, bias=False)
+        # note sure if MLPs for the linear projection is overkill but this should help with feature extraction
+        # for high dimensional discrepancy between input, memory and output feature dims
+        self.linear_projection_in = _mlp_layer(input_feature_dims, projection_feature_dims, memory_feature_dims)
+        self.linear_projection_out = _mlp_layer(memory_feature_dims, projection_feature_dims, output_feature_dims)
 
         self.initial_memory = nn.Parameter(torch.Rand((memory_size, memory_feature_dims)))
         self.positional_embeddings = nn.Parameter(torch.Rand((memory_size + 1, memory_feature_dims)))
@@ -72,3 +80,118 @@ class TransformerMemory(Module):
         memory_enc = self.linear_projection_out(memory_enc)
 
         return memory_enc
+
+
+class Mini(TransformerMemory):
+    def __init__(
+            self,
+            input_feature_dims: int,
+            output_feature_dims: int,
+            memory_size: int = 256,
+    ) -> None:
+        super(Mini, self).__init__(
+            input_feature_dims=input_feature_dims,
+            output_feature_dims=output_feature_dims,
+            projection_feature_dims=64,
+            memory_size=memory_size,
+            memory_feature_dims=64,
+            decoder_depth=6,
+            attn_heads=8,
+            mlp_dim=256,
+            decoder_norm=nn.LayerNorm(64),
+        )
+
+class Small(TransformerMemory):
+    def __init__(
+            self,
+            input_feature_dims: int,
+            output_feature_dims: int,
+            memory_size: int = 256,
+    ) -> None:
+        super(Small, self).__init__(
+            input_feature_dims=input_feature_dims,
+            output_feature_dims=output_feature_dims,
+            projection_feature_dims=256,
+            memory_size=memory_size,
+            memory_feature_dims=256,
+            decoder_depth=6,
+            attn_heads=8,
+            mlp_dim=512,
+            decoder_norm=nn.LayerNorm(512),
+        )
+
+class Medium(TransformerMemory):
+    def __init__(
+            self,
+            input_feature_dims: int,
+            output_feature_dims: int,
+            memory_size: int = 256,
+    ) -> None:
+        super(Medium, self).__init__(
+            input_feature_dims=input_feature_dims,
+            output_feature_dims=output_feature_dims,
+            projection_feature_dims=512,
+            memory_size=memory_size,
+            memory_feature_dims=512,
+            decoder_depth=12,
+            attn_heads=16,
+            mlp_dim=1024,
+            decoder_norm=nn.LayerNorm(512),
+        )
+
+class Base(TransformerMemory):
+    def __init__(
+            self,
+            input_feature_dims: int,
+            output_feature_dims: int,
+            memory_size: int = 256,
+    ) -> None:
+        super(Base, self).__init__(
+            input_feature_dims=input_feature_dims,
+            output_feature_dims=output_feature_dims,
+            projection_feature_dims=1024,
+            memory_size=memory_size,
+            memory_feature_dims=1024,
+            decoder_depth=24,
+            attn_heads=24,
+            mlp_dim=2048,
+            decoder_norm=nn.LayerNorm(1024),
+        )
+
+class Large(TransformerMemory):
+    def __init__(
+            self,
+            input_feature_dims: int,
+            output_feature_dims: int,
+            memory_size: int = 256,
+    ) -> None:
+        super(Large, self).__init__(
+            input_feature_dims=input_feature_dims,
+            output_feature_dims=output_feature_dims,
+            projection_feature_dims=2048,
+            memory_size=memory_size,
+            memory_feature_dims=2048,
+            decoder_depth=48,
+            attn_heads=32,
+            mlp_dim=4096,
+            decoder_norm=nn.LayerNorm(2048),
+        )
+
+class XLarge(TransformerMemory):
+    def __init__(
+            self,
+            input_feature_dims: int,
+            output_feature_dims: int,
+            memory_size: int = 256,
+    ) -> None:
+        super(XLarge, self).__init__(
+            input_feature_dims=input_feature_dims,
+            output_feature_dims=output_feature_dims,
+            projection_feature_dims=2048,
+            memory_size=memory_size,
+            memory_feature_dims=2048,
+            decoder_depth=96,
+            attn_heads=32,
+            mlp_dim=4096,
+            decoder_norm=nn.LayerNorm(2048),
+        )
