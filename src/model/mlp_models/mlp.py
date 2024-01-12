@@ -1,3 +1,4 @@
+import torch.functional as f
 from torch import nn, Tensor
 from torch.nn import Module
 from typing import Tuple, List
@@ -79,19 +80,19 @@ class DelayClassifier(Module):
     
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         encoding = self.encoder(x)
-        return self.classifer(encoding[:-self.encoder_dims]), encoding[-self.encoder_dims:]
+        return f.Sigmoid(self.classifer(encoding[:-self.encoder_dims])), encoding[-self.encoder_dims:]
 
 
 class BaseDelayClassifier(DelayClassifier):
     def __init__(
         self,
         input_dims: int,
-        delay_classes: int,
+        delays: List[int],
         encoder_dims: int,
     ) -> None:
         super(DelayClassifier, self).__init__(
             input_dims=input_dims,
-            action_space=delay_classes,
+            action_space=len(delays),
             encoder_dims=encoder_dims,
             hidden_dims=1024,
         )

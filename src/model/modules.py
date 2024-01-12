@@ -72,9 +72,9 @@ class DelayModule(NetworkWrapper):
     """
     Wraps delay classification networks
     """
-    def __init__(self, input_dims: List[Tuple[int]], delay_map: Dict[int, int], network: Module = None):
-        self.delay_map = delay_map
-        super().__init__(input_dims, (len(self.delay_map), ), network)
+    def __init__(self, input_dims: List[Tuple[int]], delays: List[int], encoding_size: int, network: Module = None):
+        self.delay_map = {i:x for i, x in enumerate(delays)}
+        super().__init__(input_dims, [(-1, len(self.delay_map)), (-1, encoding_size)], network)
         
     def decode(self, x: Tensor | Tuple[Tensor]) -> Any:
         _, classification = torch.max(x, dim=-1)
@@ -85,9 +85,9 @@ class KeystrokeModule(NetworkWrapper):
     """
     Wraps keystroke classification networks
     """
-    def __init__(self, input_dims: List[Tuple[int]], key_map: Dict[int, str], network: Module = None):
-        self.key_map = key_map
-        super().__init__(input_dims, (len(self.delay_map), 2), network)
+    def __init__(self, input_dims: List[Tuple[int]], keys: List[str], encoding_size: int, network: Module = None):
+        self.key_map = {i: s for i, s in enumerate(keys)}
+        super().__init__(input_dims, [(-1, len(self.key_map), 2), (-1, encoding_size)], network)
         
     def decode(self, x: Tensor | Tuple[Tensor]) -> Any:
         _, classifications = torch.max(x, dim=-1)

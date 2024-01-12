@@ -1,9 +1,15 @@
 from torch import nn, Tensor
 from torch.nn import Module
-from typing import Tuple, List, Optional
+from typing import Tuple, List, Optional, Dict, Any, Callable
 
 from model.modules import VisionModule, MemoryModule, ActionModule, \
     DelayModule, KeystrokeModule, MouseModule
+    
+from vision_models import vgg
+from memory_models import transformer_memory
+from action_models import action_transformer
+from mouse_models import deconv_vgg
+from mlp_models import mlp
 
 
 class Model(Module):
@@ -61,4 +67,93 @@ class Model(Module):
                     self.mouse_network.decode(mouse_positions),
                 )
             )
-        
+
+
+def _default_networks_from(
+    action_space: List[str],
+    delay_space: List[int],
+    mouse_space: Tuple[int, int], 
+    visual_space: Tuple[int, int],
+    visual_encoding_size: int,
+    memory_encoding_size: int,
+    action_encoding_size: int,
+    peripheral_encoding_size: int,
+    memory_size: int = 256,
+    visual_network: Callable = vgg.VGG19,
+    memory_network: Callable = transformer_memory.Small,
+    action_network: Callable = action_transformer.Small,
+    delay_network: Callable = mlp.BaseDelayClassifier,
+    keystroke_network: Callable = mlp.BaseKeystrokeClassifier,
+    mouse_network: Callable = deconv_vgg.DeconvVGG19,
+    ) -> Tuple[VisionModule, MemoryModule, ActionModule, DelayModule, KeystrokeModule, MouseModule]:
+    """
+    Returns VisionModule, MemoryModule, ActionModule, DelayModule, KeystrokeModule, MouseModule
+    """
+    return (
+        VisionModule(
+            input_dims=[(3, *visual_space)],
+            out_dims=[(visual_encoding_size,)],
+            network=visual_network(
+                input_dims=visual_space,
+                mlp_output_dims=visual_encoding_size,
+        )),
+        MemoryModule(
+            input_dims=[(visual_encoding_size,)],
+            out_dims=[(memory_encoding_size,)], 
+            network=memory_network(
+                input_feature_dims=visual_encoding_size,
+                output_feature_dims=memory_encoding_size,
+                memory_size=memory_size,
+        )),
+        ActionModule(
+            input_dims=[(memory_encoding_size,)],
+            out_dims=[(-1, action_encoding_size)],            
+            network=action_network(
+                input_feature_dims=memory_encoding_size,
+                output_feature_dims=action_encoding_size,
+            )),
+        DelayModule(
+            input_dims=[(-1, peripheral_encoding_size)],
+            delays=delay_space,
+            encoding_size=peripheral_encoding_size,
+            network=delay_network(
+                input_dims=peripheral_encoding_size,
+                delays=delay_space,
+                encoder_dims=peripheral_encoding_size,
+        )),
+        KeystrokeModule(
+            input_dims=[(-1, action_encoding_size)],
+            keys=action_space,
+            encoding_size=peripheral_encoding_size,
+            network=keystroke_network(
+                input_dims=action_encoding_size,
+                action_space=action_space,
+                encoding_dims=peripheral_encoding_size,
+        )),
+        MouseModule(
+            input_dims=[(-1, visual_encoding_size+peripheral_encoding_size)],
+            output_dims=[(-1, *mouse_space)],
+            network=mouse_network(
+                input_dims=peripheral_encoding_size + visual_encoding_size,
+                output_dims=mouse_space,
+        )),
+    )
+
+
+class Default(Model):
+    def __init__(
+        self,
+        action_space: List[str],
+        delay_space: List[int],
+        mouse_space: Tuple[int, int], 
+        visual_space: Tuple[int, int]
+        ):
+        super().__init__(*_default_networks_from(
+            action_space=action_space,
+            delay_space=delay_space,
+            mouse_space=mouse_space,
+            visual_space=visual_space,
+            visual_encoding_size=256,
+            memory_encoding_size=256,
+            action_encoding_size=256,
+        ))
