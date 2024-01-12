@@ -172,6 +172,9 @@ def load_events(
     return res
 
 def embed_event(event: Tuple[Optional[str], int, Tuple[int, int]], key_space: Dict[str, int], delay_space: Dict[int, int], mouse_space: Tuple[int, int]) -> Tuple[Tensor, Tensor, Tensor]:
+    """
+    Embeds event int three tensors (ready for training!)
+    """
     key, delay, mouse_pos = event
     
     keystroke_embedding = torch.zeros((len(key_space),))
@@ -186,7 +189,10 @@ def embed_event(event: Tuple[Optional[str], int, Tuple[int, int]], key_space: Di
     
     return key, delay, mouse_pos
 
-def load_data(session: List[str], keys: List[str], delays: List[int], scrolls: list[int], mouse_space: Tuple[int, int], dir: str = "data") -> Iterable[Tensor, Tensor]:
+def load_data(session: List[str], keys: List[str], delays: List[int], scrolls: list[int], mouse_space: Tuple[int, int], dir: str = "data") -> Iterable[Tensor, List[Tensor]]:
+    """
+    Loads data in tensor form
+    """
     key_map = {key: i for i, key in enumerate(keys)}  # keen observers see this is a reverse key map compared to model
     keys = set(keys)
     
