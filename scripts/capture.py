@@ -292,7 +292,7 @@ def log_mouse_scroll(x: int, y: int, dx: int, dy: int, data: List[Dict[str, Any]
     with mutex:
         data.append(
             create_mouse_log(
-                type=MOUSE_CLICK,
+                type=MOUSE_SCROLL,
                 x=x,
                 y=y,
                 dx=dx,

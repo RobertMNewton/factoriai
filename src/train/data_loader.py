@@ -3,7 +3,7 @@ import json
 
 import torch
 from torch import Tensor
-from torchvision import read_image
+from torchvision.io import read_image
 
 from typing import List, Optional, Dict, Iterable, Tuple, Union, Set
 
@@ -83,11 +83,11 @@ def load_metadata(session_id: str, dir: str = "data") -> dict:
 
     return res
 
-def load_screenshot(session_id: str, timestamp: Union[int, str], dir: str = "data") -> Tensor:
+def load_screenshot(session_id: str, timestamp: Union[int, str], device: torch.device, dtype: torch.dtype = torch.float64, dir: str = "data") -> Tensor:
     """
     Loads screenshot from session id and timestamp
     """
-    return read_image(f"{dir}/{session_id}/screenshots/{timestamp}.png")
+    return read_image(f"{dir}/{session_id}/screenshots/{timestamp}.png").to(dtype).to(device)
 
 def map_delay(delay: int, delay_space: List[int]) -> int:
     """
@@ -171,25 +171,25 @@ def load_events(
     
     return res
 
-def embed_event(event: Tuple[Optional[str], int, Tuple[int, int]], key_space: Dict[str, int], delay_space: Dict[int, int], mouse_space: Tuple[int, int]) -> Tuple[Tensor, Tensor, Tensor]:
+def embed_event(event: Tuple[Optional[str], int, Tuple[int, int]], key_space: Dict[str, int], delay_space: Dict[int, int], mouse_space: Tuple[int, int], device: torch.device, dtype: torch.dtype = torch.float64) -> Tuple[Tensor, Tensor, Tensor]:
     """
     Embeds event int three tensors (ready for training!)
     """
     key, delay, mouse_pos = event
     
-    keystroke_embedding = torch.zeros((len(key_space),))
+    keystroke_embedding = torch.zeros((len(key_space),), device=device, dtype=dtype)
     keystroke_embedding[key_space[key]] = 1.0
     
-    delay_embedding = torch.zeros((len(delay_space,)))
+    delay_embedding = torch.zeros((len(delay_space,)), device=device, dtype=dtype)
     delay_embedding[delay_space[delay]] = 1.0
     
     mx, my = mouse_pos
-    mouse_embedding = torch.zeros(mouse_space)
+    mouse_embedding = torch.zeros(mouse_space, device=device, dtype=dtype)
     mouse_embedding[mx, my] = 1.0
     
     return key, delay, mouse_pos
 
-def load_data(session: List[str], keys: List[str], delays: List[int], scrolls: list[int], mouse_space: Tuple[int, int], dir: str = "data") -> Iterable[Tensor, List[Tensor]]:
+def load_data(session: List[str], keys: List[str], delays: List[int], scrolls: list[int], mouse_space: Tuple[int, int], device: torch.device, dtype: torch.dtype = torch.float64, dir: str = "data") -> Iterable[Tensor, List[Tensor]]:
     """
     Loads data in tensor form
     """
@@ -222,7 +222,7 @@ def load_data(session: List[str], keys: List[str], delays: List[int], scrolls: l
                     dir=dir
                     )
                 
-                yield load_screenshot(session_id, event_ts, dir=dir), [embed_event(event, key_map, delay_map, mouse_space) for event in events]
+                yield load_screenshot(session_id, event_ts, device=device, dtype=dtype, dir=dir), [embed_event(event, key_map, delay_map, mouse_space, device=device, dtype=dtype) for event in events]
                 last_ts, event_ts = screenshot_ts, next(event_ts_iter)
             else:
                 yield load_screenshot(session_id, event_ts, dir=dir), []
