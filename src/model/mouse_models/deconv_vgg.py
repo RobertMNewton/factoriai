@@ -60,7 +60,7 @@ class DeconvVGG(Module):
         for vgg_layer in vgg_layers:
             self.model.append(*_vgg_layer(*vgg_layer))
 
-        self.model.append(nn.Softmax2d())
+        self.model.append(nn.Sigmoid())
 
         self.model = nn.Sequential(*self.model)
         self.forward = self.model

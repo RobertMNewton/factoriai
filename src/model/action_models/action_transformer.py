@@ -84,7 +84,7 @@ class ActionTransformer(Module):
                 actions = torch.cat((actions, self.decoder(actions, actions)[-1]), dim=0)
                 
                 if train is None:
-                    _, end_classification = f.Sigmoid(torch.max(actions[-1, -2:]))
+                    _, end_classification = torch.max(f.Sigmoid(actions[-1, -2:]))
                     if end_classification == 1:
                         raise BreakLoop
         except BreakLoop:
