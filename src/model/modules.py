@@ -87,7 +87,7 @@ class KeystrokeModule(NetworkWrapper):
     """
     def __init__(self, input_dims: List[Tuple[int]], keys: List[str], encoding_size: int, network: Module = None):
         self.key_map = {i: s for i, s in enumerate(keys)}
-        super().__init__(input_dims, [(-1, len(self.key_map), 2), (-1, encoding_size)], network)
+        super().__init__(input_dims, [(-1, len(self.key_map)), (-1, encoding_size)], network)
         
     def decode(self, x: Tensor | Tuple[Tensor]) -> Any:
         _, classifications = torch.max(x, dim=-1)

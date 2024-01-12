@@ -5,9 +5,13 @@ import torch
 from torch import Tensor
 from torchvision import read_image
 
-from typing import List, Optional, Dict, Iterable, Tuple, Union
+from typing import List, Optional, Dict, Iterable, Tuple, Union, Set
 
-from ..scripts import capture
+from scripts import capture
+
+SCROLL = 'SCROLL'
+LMB = 'LMB'
+RMB = 'RMB'
 
 
 def get_sessions(dir: str = "data") -> List[List[str]]:
@@ -80,52 +84,139 @@ def load_metadata(session_id: str, dir: str = "data") -> dict:
     return res
 
 def load_screenshot(session_id: str, timestamp: Union[int, str], dir: str = "data") -> Tensor:
+    """
+    Loads screenshot from session id and timestamp
+    """
     return read_image(f"{dir}/{session_id}/screenshots/{timestamp}.png")
 
-def load_events(session_id: str, timestamp: Union[int, str], keymap: Dict[str, int], win_size: Tuple[int, int], keystroke_encoding: Optional[Tensor] = None, dir: str = "data") -> Tuple[Tensor, Optional[List[str]]]:
-    if keystroke_encoding is None:
-        size = max(keymap.values())
-        keystroke_encoding = torch.cat(
-            tensors=(
-                torch.zeros((size, 1)),
-                torch.ones((size, 1)),
-            ),
-            dim=-1
-        )
+def map_delay(delay: int, delay_space: List[int]) -> int:
+    """
+    Maps delay to the closest available delay in delay space
+    """
+    delta = [abs(delay - d) for d in delay_space]
+    return delay_space[delta.index(min(delta))]
 
-    mouse_pos = (0, 0)
+def map_scroll(scroll: int, scroll_space: List[int]) -> int:
+    """
+    Maps scroll to the closest available scroll in scroll space
+    """
+    delta = [abs(scroll - d) for d in scroll_space]
+    return scroll_space[delta.index(min(delta))]
 
+def map_mouse_pos(pos: Tuple[int, int], mouse_space: [int, int], window_space: [int, int]) -> Tuple[int, int]:
+    return int(pos[0] * (mouse_space[0] / window_space[0])), int(pos[1] * (mouse_space[1] / window_space[1]))
+
+def load_events(
+    session_id: str,
+    timestamp: Union[int, str],
+    last_timestamp: Union[int, str],
+    keyset: Set[str] | List[str],
+    delays: List[str],
+    scroll_space: List[int],
+    window_space: Tuple[int, int],
+    mouse_space: Tuple[int, int],
+    dir: str = "data"
+    ) -> List[Tuple(Optional[str], int, Tuple[int, int])]:
+    """
+    Loads events from session id and timestamp and cleans them into a list of tuple actions Tuple(keys: List[(key, pressed)], delay: int, mouse_pos: Tuple[int, int])
+    
+    NOTE: SCROLL SPACE should be inside keyset or network will throw error
+    """
+    for scroll in scroll_space:
+        assert f"SCROLL_{scroll}" in keyset, \
+            f"did not find scroll {scroll} in action space {keyset}" 
+    
     events = None
-    with open(f"{dir}/{session_id}/events/{timestamp}.json", "r") as f:
+    with open(f"{dir}/{session_id}/{timestamp}.json", "r") as f:
         events = json.load(f)
     
-
-    repeats = {}
+    
+    res, last_mouse_pos = [], (0, 0)
     for event in events:
-        if event[capture.EVENT_TYPE] in [capture.KEY_DOWN, capture.KEY_UP]:
-            keystroke_ix = keymap[capture.KEY_VALUE]
-            keystroke_encoding[keystroke_ix] = Tensor([1, 0]) if event[capture.EVENT_TYPE] == capture.KEY_DOWN else Tensor([0, 1])
+        if event[capture.EVENT_TYPE] == capture.MOUSE_MOVE:
+            last_mouse_pos = map_mouse_pos((event[capture.MOUSE_X], event[capture.MOUSE_Y]), mouse_space, window_space)
+            res.append(
+                (
+                    None,
+                    map_delay(event[capture.TIMESTAMP] - last_timestamp, delays),
+                    last_mouse_pos,
+                )
+            )
+        elif event[capture.EVENT_TYPE] == capture.MOUSE_SCROLL:
+            last_mouse_pos = map_mouse_pos((event[capture.MOUSE_X], event[capture.MOUSE_Y]), mouse_space, window_space)
+            res.append(
+                (
+                    f"{SCROLL}{map_scroll(event[capture.MOUSE_DY], scroll_space)}",
+                    map_delay(event[capture.TIMESTAMP] - last_timestamp, delays),
+                    last_mouse_pos,
+                )
+            )
+        elif event[capture.EVENT_TYPE] == capture.MOUSE_CLICK:
+            last_mouse_pos = map_mouse_pos((event[capture.MOUSE_X], event[capture.MOUSE_Y]), mouse_space, window_space)
+            res.append(
+                (
+                    LMB if capture.KEY_VALUE not in event else RMB,
+                    map_delay(event[capture.TIMESTAMP] - last_timestamp, delays),
+                    last_mouse_pos,
+                )
+            )
+        elif event[capture.EVENT_TYPE] in [capture.KEY_DOWN, capture.KEY_UP] and event[capture.KEY_VALUE] in keyset:
+            res.append(
+                (
+                    event[capture.KEY_VALUE],
+                    map_delay(event[capture.TIMESTAMP] - last_timestamp, delays),
+                    last_mouse_pos,
+                )
+            )
+    
+    return res
 
-            if keymap[capture.KEY_VALUE] in repeats:
-                keymap[capture.KEY_VALUE] += 1
-            else:
-                keymap[capture.KEY_VALUE] = 1
-        else:
-            
+def embed_event(event: Tuple[Optional[str], int, Tuple[int, int]], key_space: Dict[str, int], delay_space: Dict[int, int], mouse_space: Tuple[int, int]) -> Tuple[Tensor, Tensor, Tensor]:
+    key, delay, mouse_pos = event
+    
+    keystroke_embedding = torch.zeros((len(key_space),))
+    keystroke_embedding[key_space[key]] = 1.0
+    
+    delay_embedding = torch.zeros((len(delay_space,)))
+    delay_embedding[delay_space[delay]] = 1.0
+    
+    mx, my = mouse_pos
+    mouse_embedding = torch.zeros(mouse_space)
+    mouse_embedding[mx, my] = 1.0
+    
+    return key, delay, mouse_pos
 
-
-def load_data(session: List[str], keymap: Dict[str, int], dir: str = "data") -> Iterable[Tensor, Tensor]:
+def load_data(session: List[str], keys: List[str], delays: List[int], scrolls: list[int], mouse_space: Tuple[int, int], dir: str = "data") -> Iterable[Tensor, Tensor]:
+    key_map = {key: i for i, key in enumerate(keys)}  # keen observers see this is a reverse key map compared to model
+    keys = set(keys)
+    
+    delay_map = {key: i for i, key in enumerate(delays)}
+    
     for session_id in session:
         meta_data = load_metadata(session_id)
 
         screenshot_ts_l = sorted([int(s.strip(".png")) for s in os.listdir(f"{dir}/{session_id}/screenshots")])
-        event_ts_l = iter(sorted([int(s.strip(".png")) for s in os.listdir(f"{dir}/{session_id}/screenshots")]))
-
-        event_ts = next(event_ts_l)
+        event_ts_l = sorted([int(s.strip(".png")) for s in os.listdir(f"{dir}/{session_id}/screenshots")])
+        
+        last_ts = min(screenshot_ts_l + event_ts_l)
+        
+        event_ts_iter = iter(event_ts_l)
+        event_ts = next(event_ts_iter)
         for screenshot_ts in screenshot_ts_l:
-            # this is still generic. Events loading needs to be implemented
-            if screenshot_ts - (meta_data["fps"] / 2) <= event_ts <= screenshot_ts + (meta_data["fps"] / 2):
-                yield load_screenshot(session_id, screenshot_ts), load_events(session_id, screenshot_ts)
-                screenshot_ts = next(screenshot_ts_l)
+            if int(event_ts) - meta_data["fps"]/2 <= int(screenshot_ts) <= int(event_ts) + meta_data["fps"]/2:
+                events = load_events(
+                    session_id,
+                    event_ts,
+                    last_ts,
+                    keys,
+                    delays,
+                    scrolls,
+                    meta_data["monitor_size"],
+                    mouse_space,
+                    dir=dir
+                    )
+                
+                yield load_screenshot(session_id, event_ts, dir=dir), [embed_event(event, key_map, delay_map, mouse_space) for event in events]
+                last_ts, event_ts = screenshot_ts, next(event_ts_iter)
             else:
-                yield load_screenshot(session_id, screenshot_ts), load_events(session_id, screenshot_ts)
+                yield load_screenshot(session_id, event_ts, dir=dir), []

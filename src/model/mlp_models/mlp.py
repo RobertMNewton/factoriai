@@ -18,8 +18,7 @@ def _mlp_layer(input_dims: int, hidden_dims: int, output_dims: int, depth: int =
 
 def _action_classifier_layer(input_dims: int, action_classes: int) -> List[Module]:
     return [
-        nn.Linear(input_dims, action_classes*2),
-        nn.Unflatten(1, (action_classes, 2)),
+        nn.Linear(input_dims, action_classes),
         nn.Sigmoid(),
     ]
 
@@ -53,12 +52,12 @@ class BaseKeystrokeClassifier(KeystrokeClassifier):
     def __init__(
         self,
         input_dims: int,
-        action_space: int,
+        action_space: List[str],
         encoder_dims: int,
     ) -> None:
         super(BaseKeystrokeClassifier, self).__init__(
             input_dims=input_dims,
-            action_space=action_space,
+            action_space=len(action_space),
             encoder_dims=encoder_dims,
             hidden_dims=1024,
         )
