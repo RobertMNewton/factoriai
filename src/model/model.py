@@ -1,8 +1,9 @@
 from torch import nn, Tensor
 from torch.nn import Module
-from typing import Tuple
+from typing import Tuple, List, Optional
 
-from src.model.vision_module import VisionModule
+from model.modules import VisionModule, MemoryModule, ActionModule, \
+    DelayModule, KeystrokeModule, MouseModule
 
 
 class Model(Module):
@@ -13,11 +14,11 @@ class Model(Module):
     def __init__(
             self,
             vision_encoder:     VisionModule,
-            memory_network:      Module,
-            action_network:      Module,
-            delay_network:       Module,
-            keystroke_network:   Module,
-            mouse_networks:      Module,
+            memory_network:     MemoryModule,
+            action_network:     ActionModule,
+            delay_network:      DelayModule,
+            keystroke_network:  KeystrokeModule,
+            mouse_networks:     MouseModule,
     ):
         super(Model, self).__init__()
 
@@ -28,7 +29,7 @@ class Model(Module):
         self.keystroke_network = keystroke_network
         self.mouse_network = mouse_networks
     
-    def forward(self, image: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    def forward(self, image: Tensor, train: Optional[int] = None, max_actions: int = 20) -> Tuple[Tensor, Tensor, Tensor]:
         """
         Returns keystrokes, delays and mouse_positions encoded probabilistically as action tensors that can be decoded
         for scheduling bot actions.
@@ -37,11 +38,27 @@ class Model(Module):
         """
         image_enc: Tensor = self.vision_encoder(image)
         memory_enc: Tensor = self.memory_network(image_enc)
-        actions: Tensor = self.action_network(memory_enc)
+        actions, end_token_prob: Tuple[Tensor, Tensor] = self.action_network(memory_enc, train=train, max_actions=max_actions)
         
         keystrokes, keystroke_encs: Tuple[Tensor, Tensor] = self.keystroke_network(actions)
         delays, delay_encs: Tuple[Tensor, Tensor] = self.delay_network(actions, keystroke_encs)
         mouse_positions: Tensor = self.mouse_network(actions, delay_encs, image_enc)
 
-        return keystrokes, delays, mouse_positions
+        if train is not None:
+            return keystrokes, delays, mouse_positions, end_token_prob
+        else:
+            return keystrokes, delays, mouse_positions
+    
+    
+    def decode(self, actions: List[Tuple[Tensor, Tensor, Tensor]]) -> List[Tuple[List[str], int, Tuple[int, int]]]:
+        res = []
+        for action in actions:
+            keystrokes, delays, mouse_positions = action
+            res.append(
+                (
+                    self.keystroke_network.decode(keystrokes),
+                    self.delay_network.decode(delays),
+                    self.mouse_network.decode(mouse_positions),
+                )
+            )
         
