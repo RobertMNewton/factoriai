@@ -1,9 +1,9 @@
-from torch import nn
+from torch import nn, Tensor
 from torch.nn import Module
 
 from typing import Tuple, List
 
-from math import floor
+from math import floor, ceil
 
 
 def _conv_layer(kernel_size: int, input_channels: int, output_channels: int, activation: Module = nn.ReLU, padding: int = 1) -> Tuple[Module, Module]:
@@ -15,8 +15,8 @@ def _pooling_layer() -> Module:
 
 def _vgg_layer(kernel_size: int, input_channels: int, feature_channels: int, depth: int, activation: Module = nn.ReLU, padding: int = 1) -> List[Module]:
     layer = []
-    for _ in range(depth):
-        layer.extend(_conv_layer(kernel_size, input_channels, feature_channels, activation=activation, padding=padding))
+    for i in range(depth):
+        layer.extend(_conv_layer(kernel_size, input_channels if i == 0 else feature_channels, feature_channels, activation=activation, padding=padding))
     layer.append(_pooling_layer())
     
     return layer
@@ -37,7 +37,7 @@ def _mlp_layer(input_dims: int, feature_dims: int, output_dims: int, depth: int 
 def _compute_output_dims(*vgg_layers, input_dims: Tuple[int, int, int]) -> Tuple[int, int, int]:
     def out_dims(in_dims: int, padding: int, dilation: int, kernel_size: int, stride: int) -> int:
         # taken from https://pytorch.org/docs/stable/generated/torch.nn.MaxPool2d.html
-        return floor((in_dims + 2*padding - dilation*kernel_size - 1)/stride + 1)
+        return ceil((in_dims + 2*padding - dilation*kernel_size - 1)/stride + 1)
 
     h, w = input_dims
     c = 3
@@ -56,7 +56,7 @@ class VGG(Module):
     """
     VGG network as described in https://arxiv.org/pdf/1409.1556.pdf. The Output is an encoding as opposed to a classification.
     """
-    def __init__(self, *vgg_layers: Tuple[int, int, int, int], mlp_feature_dims: int = 4096, mlp_output_dims: int = 4096, mlp_depth = 2, input_dims: Tuple[int, int] = (400, 400)):
+    def __init__(self, *vgg_layers: Tuple[int, int, int, int], mlp_feature_dims: int = 1024, mlp_output_dims: int = 4096, mlp_depth = 2, input_dims: Tuple[int, int] = (400, 400)):
         super(VGG, self).__init__()
 
         self.model = []
@@ -67,11 +67,15 @@ class VGG(Module):
         mlp_input_dims = _compute_output_dims(*vgg_layers, input_dims=input_dims)
         mlp_input_dims = mlp_input_dims[0] * mlp_input_dims[1] * mlp_input_dims[2]
 
-        self.model.append(nn.Flatten())
-        self.model.append(_mlp_layer(mlp_input_dims, mlp_feature_dims, mlp_output_dims))
+        self.model.append(nn.Flatten(start_dim=-3))
+        
+        self.mlp = _mlp_layer(mlp_input_dims, mlp_feature_dims, mlp_output_dims, depth=mlp_depth)
         
         self.model = nn.Sequential(*self.model)
-        self.forward = self.model
+    
+    def forward(self, x: Tensor) -> Tensor:
+        x = self.model(x)
+        return self.mlp(x.unsqueeze(0))
     
     def get_size(self) -> int:
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
@@ -143,7 +147,7 @@ class VGG19(VGG):
         (3, 256, 512, 4),
         (3, 512, 512, 4),
     ]
-    def __init__(self, mlp_feature_dims: int = 4096, mlp_output_dims: int = 4096, mlp_depth = 2, input_dims: Tuple[int, int] = (400, 400)):
+    def __init__(self, mlp_feature_dims: int = 512, mlp_output_dims: int = 512, mlp_depth = 1, input_dims: Tuple[int, int] = (400, 400)):
         super(VGG19, self).__init__(
             *VGG19.CONFIG,
             mlp_feature_dims=mlp_feature_dims,

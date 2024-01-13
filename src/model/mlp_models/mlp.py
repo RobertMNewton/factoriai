@@ -1,4 +1,4 @@
-import torch.functional as f
+import torch.nn.functional as f
 from torch import nn, Tensor
 from torch.nn import Module
 from typing import Tuple, List
@@ -7,26 +7,26 @@ from typing import Tuple, List
 def _fc_layer(input_dims: int, output_dims: int, activation: Module = nn.ReLU) -> Tuple[Module, Module]:
     return nn.Linear(input_dims, output_dims), activation()
 
-def _mlp_layer(input_dims: int, hidden_dims: int, output_dims: int, depth: int = 2, activation: Module = nn.ReLU) -> List[Module]:
+def _mlp_layer(input_dims: int, hidden_dims: int, output_dims: int, depth: int = 2, activation: Module = nn.ReLU) -> Module:
     mlp = []
     mlp.extend(_fc_layer(input_dims, hidden_dims, activation=activation))
     for _ in range(depth):
         mlp.extend(_fc_layer(hidden_dims, hidden_dims, activation=activation))
     mlp.extend(_fc_layer(hidden_dims, output_dims, activation=activation))
 
-    return mlp
+    return nn.Sequential(*mlp)
 
 def _action_classifier_layer(input_dims: int, action_classes: int) -> List[Module]:
-    return [
+    return nn.Sequential(
         nn.Linear(input_dims, action_classes),
         nn.Sigmoid(),
-    ]
+    )
 
-def _classifier_layer(input_dims: int, classes: int) -> List[Module]:
-    return [
+def _classifier_layer(input_dims: int, classes: int) -> Module:
+    return nn.Sequential(
         nn.Linear(input_dims, classes),
         nn.Sigmoid(),
-    ]
+    )
 
 
 class KeystrokeClassifier(Module):
@@ -45,7 +45,7 @@ class KeystrokeClassifier(Module):
     
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         encoding = self.encoder(x)
-        return self.classifer(encoding[:-self.encoder_dims]), encoding[-self.encoder_dims:]
+        return self.classifer(encoding[:, :-self.encoder_dims]), encoding[:, -self.encoder_dims:]
     
     
 class BaseKeystrokeClassifier(KeystrokeClassifier):
@@ -58,8 +58,8 @@ class BaseKeystrokeClassifier(KeystrokeClassifier):
         super(BaseKeystrokeClassifier, self).__init__(
             input_dims,
             len(action_space),
+            256,
             encoder_dims,
-            1024,
         )
 
 
@@ -79,7 +79,7 @@ class DelayClassifier(Module):
     
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         encoding = self.encoder(x)
-        return f.Sigmoid(self.classifer(encoding[:-self.encoder_dims])), encoding[-self.encoder_dims:]
+        return f.sigmoid(self.classifer(encoding[:, :-self.encoder_dims])), encoding[:, -self.encoder_dims:]
 
 
 class BaseDelayClassifier(DelayClassifier):
@@ -92,7 +92,7 @@ class BaseDelayClassifier(DelayClassifier):
         super(BaseDelayClassifier, self).__init__(
             input_dims,
             len(delays),
-            1024,
             encoder_dims,
+            256,
         )
         

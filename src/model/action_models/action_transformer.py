@@ -1,7 +1,7 @@
 import torch
 from torch import nn, Tensor
 from torch.nn import Module, TransformerDecoder, TransformerDecoderLayer
-import torch.functional as f
+import torch.nn.functional as f
 
 from typing import Tuple, Optional
 
@@ -81,10 +81,11 @@ class ActionTransformer(Module):
         actions = torch.clone(self.start_token)    
         try:
             for _ in range(max_tokens):
-                actions = torch.cat((actions, self.decoder(actions, actions)[-1]), dim=0)
+                
+                actions = torch.cat((actions, self.decoder(actions, actions)[-1].unsqueeze(0)), dim=0)
                 
                 if train is None:
-                    _, end_classification = torch.max(f.Sigmoid(actions[-1, -2:]))
+                    _, end_classification = torch.max(f.sigmoid(self.linear_projection_out(actions)[-1, -2:]))
                     if end_classification == 1:
                         raise BreakLoop
         except BreakLoop:
@@ -92,7 +93,9 @@ class ActionTransformer(Module):
         except Exception as e:
             raise e
         
-        return actions[1:, :-2], f.Sigmoid(actions[1:, -2:])
+        actions = self.linear_projection_out(actions)
+        
+        return actions[1:, :-2], f.sigmoid(actions[1:, -2:])
         
     
 class Mini(ActionTransformer):

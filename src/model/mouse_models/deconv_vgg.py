@@ -1,9 +1,21 @@
-from torch import nn
+import torch
+from torch import nn, Tensor
 from torch.nn import Module
 
-from typing import Tuple, List
+from typing import Optional, Tuple, List
 
 from math import floor
+
+from torch.nn.common_types import _size_2_t
+
+class SpecialMaxUnpool2d(Module):
+    def __init__(self, kernel_size: _size_2_t, stride: _size_2_t | None = None, padding: _size_2_t = 0) -> None:
+        super().__init__()
+        
+        self.unpool = nn.MaxUnpool2d(kernel_size, stride, padding)
+    
+    def forward(self, x: Tensor) -> Tensor:
+        return self.unpool(x, torch.randint_like(x, 4).to(torch.int64))
 
 
 def _deconv_layer(kernel_size: int, input_channels: int, output_channels: int, activation: Module = nn.ReLU, padding: int = 1) -> Tuple[Module, Module]:
@@ -11,12 +23,15 @@ def _deconv_layer(kernel_size: int, input_channels: int, output_channels: int, a
 
 
 def _unpooling_layer() -> Module:
-    return nn.MaxUnpool2d(2, 2)
+    return SpecialMaxUnpool2d(2, 2)
 
 def _vgg_layer(kernel_size: int, feature_channels: int, input_channels: int, depth: int, activation: Module = nn.ReLU, padding: int = 1) -> List[Module]:
     layer = [_unpooling_layer()]
-    for _ in range(depth):
-        layer.extend(_deconv_layer(kernel_size, input_channels, feature_channels, activation=activation, padding=padding))
+    for i in range(depth):
+        if i == 0 and depth > 1:
+            layer.extend(_deconv_layer(kernel_size, input_channels, feature_channels, activation=activation, padding=padding))
+        else:
+            layer.extend(_deconv_layer(kernel_size, feature_channels, feature_channels, activation=activation, padding=padding))
     return layer
     
 
@@ -40,27 +55,29 @@ def _compute_output_dims(*vgg_layers, output_dims: Tuple[int, int]) -> Tuple[int
     h, w = output_dims
     c = -1
     
-    vgg_layers = list(vgg_layers[0])
+    vgg_layers = list(vgg_layers)
     vgg_layers.reverse()
     
     for vgg_layer in vgg_layers:
         h = in_dims(dim=h, stride=2, padding=0, kernel_size=2)
         w = in_dims(dim=w, stride=2, padding=0, kernel_size=2)
         c = vgg_layer[2]
+    
+    assert isinstance(h, int) or isinstance(w, int), f"deconv vgg received in valid dims! output should be multiple of {2**len(vgg_layers)}"
 
     return c, h, w
 
 
 class DeconvVGG(Module):
     """
-    DeconvVGG network as described in https://arxiv.org/pdf/1505.04366.pdf. Softmax layer added at the end to convert into probabilities of mouse position
+    DeconvVGG network as similar to https://arxiv.org/pdf/1505.04366.pdf. Softmax layer added at the end to convert into probabilities of mouse position
     """
     def __init__(self, *vgg_layers: Tuple[int, int, int, int], input_dims: int = 2048, mlp_feature_dims: int = 2048, mlp_output_dims: int = 4096, mlp_depth = 2, output_dims: Tuple[int, int] = (400, 400)):
         super(DeconvVGG, self).__init__()
 
         self.model = []
 
-        mlp_output_dims = _compute_output_dims(vgg_layers, output_dims=output_dims)
+        mlp_output_dims = _compute_output_dims(*vgg_layers, output_dims=output_dims)
 
         self.model.append(_mlp_layer(input_dims, mlp_feature_dims, mlp_output_dims[0]*mlp_output_dims[1]*mlp_output_dims[2]))
         self.model.append(nn.Unflatten(-1, mlp_output_dims))
@@ -72,6 +89,9 @@ class DeconvVGG(Module):
 
         self.model = nn.Sequential(*self.model)
         self.forward = self.model
+    
+    def forward(self, x: Tensor) -> Tensor:
+        return self.model(x)
     
     def get_size(self) -> int:
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
@@ -138,7 +158,7 @@ class DeconvVGG16(DeconvVGG):
 
 
 class DeconvVGG19(DeconvVGG):
-    # tuples are organised as (kernel_size, feature_channels, input_channels, depth)
+    # tuples are organised as (kernel_size: int, feature_channels: int, input_channels: int, depth: int)
     CONFIG = [
         (3, 1, 64, 2),
         (3, 64, 128, 2),

@@ -1,7 +1,7 @@
 import torch
 from torch.nn import Module
 from torch import Tensor
-from typing import Tuple, Union, List, Any, Dict
+from typing import Tuple, Union, List, Any, Dict, Iterable
 
 
 def _get_shape(ts: Union[Tensor, Tuple[Tensor]]) -> List[Tuple[int]]:
@@ -11,9 +11,23 @@ def _get_shape(ts: Union[Tensor, Tuple[Tensor]]) -> List[Tuple[int]]:
         return [t.shape for t in ts]
 
 
-def _validate_shape(ts: Union[Tensor, Tuple[Tensor]], shape: List[Tuple[int]]) -> bool:
+def _validate_shape(ts: Union[Tensor, Iterable[Tensor]], shape: List[Tuple[int]]) -> bool:
     for actual_shape, expected_shape in zip(_get_shape(ts), shape):
-        if actual_shape != expected_shape:
+        if len(actual_shape) != len(expected_shape):
+            return False
+        
+        new_expected_shape = []
+        for actual_dim, expected_dim in zip(actual_shape, expected_shape):
+            if expected_dim == -1:
+                new_expected_shape.append(actual_dim)
+            else:
+                new_expected_shape.append(expected_dim)
+        new_expected_shape = tuple(new_expected_shape)
+        
+        if isinstance(actual_shape, torch.Size):
+            actual_shape = tuple(actual_shape)
+        
+        if actual_shape != new_expected_shape:
             return False
     return True
 

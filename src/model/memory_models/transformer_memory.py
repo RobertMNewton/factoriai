@@ -2,6 +2,8 @@ import torch
 from torch import nn, Tensor
 from torch.nn import Module, TransformerDecoder, TransformerDecoderLayer
 
+from src import utils
+
 from typing import Optional, Tuple
 
 
@@ -55,6 +57,8 @@ class TransformerMemory(Module):
             mlp_dim=mlp_dim,
             norm=decoder_norm,
         )
+        
+        self.device = utils.get_device()
 
         # note sure if MLPs for the linear projection is overkill but this should help with feature extraction
         # for high dimensional discrepancy between input, memory and output feature dims
@@ -65,12 +69,11 @@ class TransformerMemory(Module):
         self.positional_embeddings = nn.Parameter(torch.rand((memory_size + 1, memory_feature_dims)), requires_grad=True)
         self.cls_token = nn.Parameter(torch.rand((1, memory_feature_dims)), requires_grad=True)
 
-        self.memory = torch.clone(self.initial_memory)
+        self.memory = torch.clone(self.initial_memory).to(self.device)
 
     def forward(self, feature_enc: Tensor) -> Tensor:
         if len(feature_enc.shape) == 3 and not TransformerMemory.USER_WARNING:
             print("User Warning: transformer memory has not had batches implemented! You may receive errors!")
-
         memory_seq = torch.cat((self.cls_token, self.memory), dim=0) + self.positional_embeddings
         feature_enc = self.linear_projection_in(feature_enc)
 
@@ -81,7 +84,9 @@ class TransformerMemory(Module):
         self.memory[0] = memory_enc
 
         memory_enc = self.linear_projection_out(memory_enc)
-
+        if len(memory_enc.shape) == 1:
+            memory_enc = memory_enc.unsqueeze(0)
+        
         return memory_enc
     
     def get_size(self) -> int:

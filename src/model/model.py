@@ -1,3 +1,4 @@
+import torch
 from torch import nn, Tensor
 from torch.nn import Module
 from typing import Tuple, List, Optional, Dict, Any, Callable
@@ -44,11 +45,13 @@ class Model(Module):
         """
         image_enc: Tensor = self.vision_encoder(image)
         memory_enc: Tensor = self.memory_network(image_enc)
-        actions, end_token_prob = self.action_network(memory_enc, train=train, max_actions=max_actions)
+        actions, end_token_prob = self.action_network(memory_enc, train=train, max_tokens=max_actions)
         
         keystrokes, keystroke_encs = self.keystroke_network(actions)
-        delays, delay_encs = self.delay_network(actions, keystroke_encs)
-        mouse_positions: Tensor = self.mouse_network(actions, delay_encs, image_enc)
+        delays, delay_encs = self.delay_network(keystroke_encs)
+        
+        augmented_image_enc = torch.cat((delay_encs, image_enc.expand(delay_encs.shape[0], -1)), dim=-1)
+        mouse_positions: Tensor = self.mouse_network(augmented_image_enc)
 
         if train is not None:
             return keystrokes, delays, mouse_positions, end_token_prob
@@ -92,22 +95,22 @@ def _default_networks_from(
     return (
         VisionModule(
             [(3, *visual_space)],
-            [(visual_encoding_size,)],
+            [(1, visual_encoding_size)],
             network=visual_network(
                 input_dims=visual_space,
                 mlp_output_dims=visual_encoding_size,
         )),
         MemoryModule(
-            [(visual_encoding_size,)],
-            [(memory_encoding_size,)], 
+            [(1, visual_encoding_size,)],
+            [(1, memory_encoding_size)], 
             network=memory_network(
                 input_feature_dims=visual_encoding_size,
                 output_feature_dims=memory_encoding_size,
                 memory_size=memory_size,
         )),
         ActionModule(
-            [(memory_encoding_size,)],
-            [(-1, action_encoding_size)],            
+            [(1, memory_encoding_size)],
+            [(-1, action_encoding_size), (-1, 2)],            
             network=action_network(
                 input_feature_dims=memory_encoding_size,
                 output_feature_dims=action_encoding_size,
@@ -132,7 +135,7 @@ def _default_networks_from(
         )),
         MouseModule(
             [(-1, visual_encoding_size+peripheral_encoding_size)],
-            [(-1, *mouse_space)],
+            [(-1, 1, *mouse_space)],
             network=mouse_network(
                 input_dims=peripheral_encoding_size + visual_encoding_size,
                 output_dims=mouse_space,
