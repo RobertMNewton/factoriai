@@ -8,14 +8,14 @@ import torch
 from torch import optim, nn
 from torch.optim import Optimizer
 
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 from pydantic import BaseModel
 from tqdm import tqdm
 from functools import partial
 
 
 class Config(BaseModel):
-    keys: List[str]
+    keys: List[Optional[str]]
     delays: List[int]
     scrolls: List[int]
     mouse_space: Tuple[int, int]
@@ -37,7 +37,7 @@ class Config(BaseModel):
     
 
 default_config = Config(
-    keys=["a", "w", "s", "d", "e", "c", "z", "shift", RMB, LMB],
+    keys=["a", "w", "s", "d", "e", "c", "z", "shift", RMB, LMB, None],
     delays=list(range(25, 275, 25)),
     scrolls=list(range(-5, 6)),
     mouse_space=(384, 384),
@@ -92,7 +92,10 @@ def train_loop(model: Model, epochs: int, lr: float, optimiser: Optimizer = opti
                             end_token_labels[i, 0] = 1.0
                         end_token_labels[-1, 1] = 1.0
                         
-                        loss = sum(criterion(pred, label) for pred, label in zip(preds, last_labels + [last_labels]))
+                        for pred, label in zip(preds, last_labels + [end_token_labels]):
+                            print(f"p: {pred[0].shape}, l: {label[0].shape}")
+                        
+                        loss = sum(criterion(pred[0], label[0]) for pred, label in zip(preds, last_labels + [end_token_labels]))
                     
                     loss.backward()
                     

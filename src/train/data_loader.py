@@ -193,7 +193,7 @@ def embed_event(event: Tuple[Optional[str], int, Tuple[int, int]], key_space: Di
     mouse_embedding = torch.zeros(mouse_space, device=device, dtype=dtype)
     mouse_embedding[mx, my] = 1.0
     
-    return key, delay, mouse_pos
+    return keystroke_embedding, delay_embedding, mouse_embedding
 
 
 def get_n_steps(sessions: List[List[str]], dir="data") -> int:
