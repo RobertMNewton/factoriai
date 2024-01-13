@@ -133,7 +133,7 @@ def load_events(
             f"did not find scroll {scroll} in action space {keyset}" 
     
     events = None
-    with open(f"{dir}/{session_id}/{timestamp}.json", "r") as f:
+    with open(f"{dir}/{session_id}/events/{timestamp}.json", "r") as f:
         events = json.load(f)
     
     

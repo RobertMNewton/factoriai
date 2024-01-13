@@ -1,6 +1,6 @@
 from pynput import keyboard
 
-VENT_TYPE = "event"
+EVENT_TYPE = "event"
 
 KEY_DOWN = "key_down"
 KEY_UP = "key_up"

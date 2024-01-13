@@ -89,6 +89,9 @@ class TransformerMemory(Module):
         
         return memory_enc
     
+    def reset_memory(self) -> None:
+        self.memory = torch.clone(self.initial_memory).to(self.device)
+    
     def get_size(self) -> int:
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 

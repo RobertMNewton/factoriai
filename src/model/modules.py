@@ -74,6 +74,8 @@ class MemoryModule(NetworkWrapper):
     """
     Wraps memory networks
     """
+    def reset_memory(self) -> None:
+        self.network.reset_memory()
     
     
 class ActionModule(NetworkWrapper):

@@ -70,6 +70,9 @@ class Model(Module):
                     self.mouse_network.decode(mouse_positions),
                 )
             )
+            
+    def reset_memory(self) -> None:
+        self.memory_network.reset_memory()
 
 
 def _default_networks_from(
