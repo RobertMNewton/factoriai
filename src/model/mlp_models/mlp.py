@@ -56,10 +56,10 @@ class BaseKeystrokeClassifier(KeystrokeClassifier):
         encoder_dims: int,
     ) -> None:
         super(BaseKeystrokeClassifier, self).__init__(
-            input_dims=input_dims,
-            action_space=len(action_space),
-            encoder_dims=encoder_dims,
-            hidden_dims=1024,
+            input_dims,
+            len(action_space),
+            encoder_dims,
+            1024,
         )
 
 
@@ -71,7 +71,7 @@ class DelayClassifier(Module):
             hidden_dims: int,
             encoder_dims: int,
     ) -> None:
-        super(KeystrokeClassifier, self).__init__()
+        super(DelayClassifier, self).__init__()
         
         self.encoder_dims = encoder_dims
         self.encoder = _mlp_layer(input_dims, hidden_dims, hidden_dims+encoder_dims)
@@ -89,10 +89,10 @@ class BaseDelayClassifier(DelayClassifier):
         delays: List[int],
         encoder_dims: int,
     ) -> None:
-        super(DelayClassifier, self).__init__(
-            input_dims=input_dims,
-            action_space=len(delays),
-            encoder_dims=encoder_dims,
-            hidden_dims=1024,
+        super(BaseDelayClassifier, self).__init__(
+            input_dims,
+            len(delays),
+            1024,
+            encoder_dims,
         )
         

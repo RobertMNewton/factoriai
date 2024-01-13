@@ -64,7 +64,7 @@ class ActionTransformer(Module):
         self.linear_projection_in = _mlp_layer(input_feature_dim, int((input_feature_dim + hidden_feature_dim)/2), hidden_feature_dim)
         self.linear_projection_out = _mlp_layer(hidden_feature_dim, int((output_feature_dim + 2 + hidden_feature_dim)/2), output_feature_dim + 2)
         
-        self.start_token = nn.Parameter(nn.rand((1, hidden_feature_dim)), requires_grad=True)
+        self.start_token = nn.Parameter(torch.rand((1, hidden_feature_dim)), requires_grad=True)
         
     def forward(self, feature: Tensor, train: Optional[int] = None, max_tokens: int = 20) -> Tuple[Tensor, Tensor]:
         """
@@ -116,15 +116,15 @@ class Small(ActionTransformer):
             self,
             input_feature_dims: int,
             output_feature_dims: int,
+            memory_size: int = 256,
     ) -> None:
         super(Small, self).__init__(
-            input_feature_dims=input_feature_dims,
-            output_feature_dims=output_feature_dims,
-            hidden_feature_dim=256,
-            depth=6,
-            attn_heads=8,
-            mlp_dim=512,
-            decoder_norm=nn.LayerNorm(256),
+            input_feature_dims,
+            output_feature_dims,
+            memory_size,
+            6,
+            8,
+            512,
         )
 
 class Medium(ActionTransformer):

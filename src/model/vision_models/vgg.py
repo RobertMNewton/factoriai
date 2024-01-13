@@ -14,8 +14,13 @@ def _pooling_layer() -> Module:
     return nn.MaxPool2d(2, 2)
 
 def _vgg_layer(kernel_size: int, input_channels: int, feature_channels: int, depth: int, activation: Module = nn.ReLU, padding: int = 1) -> List[Module]:
-    return [_conv_layer(kernel_size, input_channels, feature_channels, activation=activation, padding=padding) for _ in range(depth)] \
-          + [_pooling_layer()]
+    layer = []
+    for _ in range(depth):
+        layer.extend(_conv_layer(kernel_size, input_channels, feature_channels, activation=activation, padding=padding))
+    layer.append(_pooling_layer())
+    
+    return layer
+    
 
 def _fc_layer(input_dims: int, output_dims: int, activation: Module = nn.ReLU) -> Tuple[Module, Module]:
     return nn.Linear(input_dims, output_dims), activation()
@@ -34,9 +39,10 @@ def _compute_output_dims(*vgg_layers, input_dims: Tuple[int, int, int]) -> Tuple
         # taken from https://pytorch.org/docs/stable/generated/torch.nn.MaxPool2d.html
         return floor((in_dims + 2*padding - dilation*kernel_size - 1)/stride + 1)
 
-    h, w, c = input_dims
+    h, w = input_dims
+    c = 3
 
-    for vgg_layer in vgg_layer:
+    for vgg_layer in vgg_layers:
         # the dims are only reduced by the max pooling in a VGG due to the padding in the convolutions
         w = out_dims(in_dims=w, padding=0, dilation=1, kernel_size=2, stride=2)
         h = out_dims(in_dims=h, padding=0, dilation=1, kernel_size=2, stride=2)
@@ -56,14 +62,14 @@ class VGG(Module):
         self.model = []
 
         for vgg_layer in vgg_layers:
-            self.model.append(*_vgg_layer(*vgg_layer))
+            self.model.extend(_vgg_layer(*vgg_layer))
         
-        mlp_input_dims = _compute_output_dims(vgg_layers, input_dims)
+        mlp_input_dims = _compute_output_dims(*vgg_layers, input_dims=input_dims)
         mlp_input_dims = mlp_input_dims[0] * mlp_input_dims[1] * mlp_input_dims[2]
 
         self.model.append(nn.Flatten())
         self.model.append(_mlp_layer(mlp_input_dims, mlp_feature_dims, mlp_output_dims))
-
+        
         self.model = nn.Sequential(*self.model)
         self.forward = self.model
     

@@ -20,7 +20,7 @@ def _validate_shape(ts: Union[Tensor, Tuple[Tensor]], shape: List[Tuple[int]]) -
 
 class NetworkWrapper(Module):
     def __init__(self, input_dims: List[Tuple[int]], output_dims: List[Tuple[int]], network: Module = None):
-        super(VisionModule, self).__init__()
+        super(NetworkWrapper, self).__init__()
 
         self.input_dims = input_dims
         self.output_dims = output_dims

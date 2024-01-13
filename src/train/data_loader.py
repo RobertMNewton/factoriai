@@ -7,7 +7,7 @@ from torchvision.io import read_image
 
 from typing import List, Optional, Dict, Iterable, Tuple, Union, Set
 
-from scripts import capture
+from src import constants
 
 SCROLL = 'SCROLL'
 LMB = 'LMB'
@@ -77,11 +77,17 @@ def get_sessions(dir: str = "data") -> List[List[str]]:
     return res
 
 def load_metadata(session_id: str, dir: str = "data") -> dict:
-    res = None
-    with open(f"{dir}/{session_id}/metadata.json", "r") as f:
-        res = json.load(f)
+    try:
+        res = None
+        with open(f"{dir}/{session_id}/metadata.json", "r") as f:
+            res = json.load(f)
 
-    return res
+        return res
+    except:
+        return {
+            "fps": 250,
+            "monitor size": (2560, 1664),
+        }
 
 def load_screenshot(session_id: str, timestamp: Union[int, str], device: torch.device, dtype: torch.dtype = torch.float64, dir: str = "data") -> Tensor:
     """
@@ -116,14 +122,14 @@ def load_events(
     window_space: Tuple[int, int],
     mouse_space: Tuple[int, int],
     dir: str = "data"
-    ) -> List[Tuple(Optional[str], int, Tuple[int, int])]:
+    ) -> List[Tuple[Optional[str], int, Tuple[int, int]]]:
     """
     Loads events from session id and timestamp and cleans them into a list of tuple actions Tuple(keys: List[(key, pressed)], delay: int, mouse_pos: Tuple[int, int])
     
     NOTE: SCROLL SPACE should be inside keyset or network will throw error
     """
     for scroll in scroll_space:
-        assert f"SCROLL_{scroll}" in keyset, \
+        assert f"SCROLL{scroll}" in keyset, \
             f"did not find scroll {scroll} in action space {keyset}" 
     
     events = None
@@ -133,38 +139,38 @@ def load_events(
     
     res, last_mouse_pos = [], (0, 0)
     for event in events:
-        if event[capture.EVENT_TYPE] == capture.MOUSE_MOVE:
-            last_mouse_pos = map_mouse_pos((event[capture.MOUSE_X], event[capture.MOUSE_Y]), mouse_space, window_space)
+        if event[constants.EVENT_TYPE] == constants.MOUSE_MOVE:
+            last_mouse_pos = map_mouse_pos((event[constants.MOUSE_X], event[constants.MOUSE_Y]), mouse_space, window_space)
             res.append(
                 (
                     None,
-                    map_delay(event[capture.TIMESTAMP] - last_timestamp, delays),
+                    map_delay(event[constants.TIMESTAMP] - last_timestamp, delays),
                     last_mouse_pos,
                 )
             )
-        elif event[capture.EVENT_TYPE] == capture.MOUSE_SCROLL:
-            last_mouse_pos = map_mouse_pos((event[capture.MOUSE_X], event[capture.MOUSE_Y]), mouse_space, window_space)
+        elif event[constants.EVENT_TYPE] == constants.MOUSE_SCROLL:
+            last_mouse_pos = map_mouse_pos((event[constants.MOUSE_X], event[constants.MOUSE_Y]), mouse_space, window_space)
             res.append(
                 (
-                    f"{SCROLL}{map_scroll(event[capture.MOUSE_DY], scroll_space)}",
-                    map_delay(event[capture.TIMESTAMP] - last_timestamp, delays),
+                    f"{SCROLL}{map_scroll(event[constants.MOUSE_DY], scroll_space)}",
+                    map_delay(event[constants.TIMESTAMP] - last_timestamp, delays),
                     last_mouse_pos,
                 )
             )
-        elif event[capture.EVENT_TYPE] == capture.MOUSE_CLICK:
-            last_mouse_pos = map_mouse_pos((event[capture.MOUSE_X], event[capture.MOUSE_Y]), mouse_space, window_space)
+        elif event[constants.EVENT_TYPE] == constants.MOUSE_CLICK:
+            last_mouse_pos = map_mouse_pos((event[constants.MOUSE_X], event[constants.MOUSE_Y]), mouse_space, window_space)
             res.append(
                 (
-                    LMB if capture.KEY_VALUE not in event else RMB,
-                    map_delay(event[capture.TIMESTAMP] - last_timestamp, delays),
+                    LMB if constants.KEY_VALUE not in event else RMB,
+                    map_delay(event[constants.TIMESTAMP] - last_timestamp, delays),
                     last_mouse_pos,
                 )
             )
-        elif event[capture.EVENT_TYPE] in [capture.KEY_DOWN, capture.KEY_UP] and event[capture.KEY_VALUE] in keyset:
+        elif event[constants.EVENT_TYPE] in [constants.KEY_DOWN, constants.KEY_UP] and event[constants.KEY_VALUE] in keyset:
             res.append(
                 (
-                    event[capture.KEY_VALUE],
-                    map_delay(event[capture.TIMESTAMP] - last_timestamp, delays),
+                    event[constants.KEY_VALUE],
+                    map_delay(event[constants.TIMESTAMP] - last_timestamp, delays),
                     last_mouse_pos,
                 )
             )
@@ -189,7 +195,19 @@ def embed_event(event: Tuple[Optional[str], int, Tuple[int, int]], key_space: Di
     
     return key, delay, mouse_pos
 
-def load_data(session: List[str], keys: List[str], delays: List[int], scrolls: list[int], mouse_space: Tuple[int, int], device: torch.device, dtype: torch.dtype = torch.float64, dir: str = "data") -> Iterable[Tensor, List[Tensor]]:
+
+def get_n_steps(sessions: List[List[str]], dir="data") -> int:
+    """
+    This is a vanity thing, but computes number of steps in an epoch of data (aka the given session list)
+    """
+    res = 0
+    for session in sessions:
+        for session_id in session:
+            res += len(os.listdir(f"{dir}/{session_id}/screenshots"))  
+    return res  
+
+
+def load_data(session: List[str], keys: List[str], delays: List[int], scrolls: list[int], mouse_space: Tuple[int, int], device: torch.device, dtype: torch.dtype = torch.float64, dir: str = "data") -> Iterable[Tuple[Tensor, List[Tensor]]]:
     """
     Loads data in tensor form
     """
@@ -202,7 +220,7 @@ def load_data(session: List[str], keys: List[str], delays: List[int], scrolls: l
         meta_data = load_metadata(session_id)
 
         screenshot_ts_l = sorted([int(s.strip(".png")) for s in os.listdir(f"{dir}/{session_id}/screenshots")])
-        event_ts_l = sorted([int(s.strip(".png")) for s in os.listdir(f"{dir}/{session_id}/screenshots")])
+        event_ts_l = sorted([int(s.strip(".json")) for s in os.listdir(f"{dir}/{session_id}/events")])
         
         last_ts = min(screenshot_ts_l + event_ts_l)
         
@@ -217,7 +235,7 @@ def load_data(session: List[str], keys: List[str], delays: List[int], scrolls: l
                     keys,
                     delays,
                     scrolls,
-                    meta_data["monitor_size"],
+                    meta_data["monitor size"],
                     mouse_space,
                     dir=dir
                     )
@@ -225,4 +243,4 @@ def load_data(session: List[str], keys: List[str], delays: List[int], scrolls: l
                 yield load_screenshot(session_id, event_ts, device=device, dtype=dtype, dir=dir), [embed_event(event, key_map, delay_map, mouse_space, device=device, dtype=dtype) for event in events]
                 last_ts, event_ts = screenshot_ts, next(event_ts_iter)
             else:
-                yield load_screenshot(session_id, event_ts, dir=dir), []
+                yield load_screenshot(session_id, event_ts, device=device, dtype=dtype, dir=dir), []

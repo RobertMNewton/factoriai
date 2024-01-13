@@ -1,6 +1,6 @@
-from data_loader import load_data, get_sessions
-from data_loader import RMB, LMB, SCROLL
-from model.model import Model, Default
+from .data_loader import load_data, get_sessions, get_n_steps
+from .data_loader import RMB, LMB, SCROLL
+from ..model.model import Model, Default
 
 import torch
 from torch import optim, nn
@@ -18,13 +18,20 @@ class Config(BaseModel):
     scrolls: List[int]
     mouse_space: Tuple[int, int]
     window_space: Tuple[int, int]
-    dtype: torch.dtype = torch.float32
+    dtype: str = "float64"
     
     def __init__(self, **data) -> None:
         super(Config, self).__init__(**data)
         
         for scroll in self.scrolls:
             self.keys.append(f"{SCROLL}{scroll}")
+            
+    def get_dtype(self) -> torch.dtype:
+        match self.dtype:
+            case "float64":
+                return torch.float64
+            case "float32":
+                return torch.float32
     
 
 default_config = Config(
@@ -33,14 +40,17 @@ default_config = Config(
     scrolls=list(range(-5, 6)),
     mouse_space=(400, 400),
     window_space=(400, 400),
+    dtype="float32"
 )
 
-def train(model: Model, epochs: int, lr: float, optimiser: Optimizer = optim.Adam, config: Config = default_config, dir="data", device = None, loss: nn.Module = nn.MSELoss) -> None:
+def train_loop(model: Model, epochs: int, lr: float, optimiser: Optimizer = optim.Adam, config: Config = default_config, dir="data", device = None, loss: nn.Module = nn.MSELoss, verbose: bool = True) -> None:
     """
     Trains model in place
     """
     optimiser = optimiser(model.parameters(), lr=lr)
+    
     sessions = get_sessions(dir=dir)
+    n_steps = get_n_steps(sessions, dir=dir)
     
     if device is None:
         if torch.cuda.is_available():
@@ -50,38 +60,31 @@ def train(model: Model, epochs: int, lr: float, optimiser: Optimizer = optim.Ada
         else:
             device = torch.device("cpu")
             
-    model.to(config.dtype)
+    model.to(config.get_dtype())
     model.to(device)
     
-    load_data = partial(
+    get_data = partial(
         load_data,
         keys=config.keys,
         delays=config.delays,
         scrolls=config.scrolls,
         mouse_space=config.mouse_space,
-        dtype=torch.dtype,
+        dtype=config.get_dtype(),
         device=device,
         dir=dir,
     )
     
     for epoch in range(epochs):
         for si, session in enumerate(sessions):
-            for features, labels in tqdm(load_data(session=session)):
+            pbar = tqdm(get_data(session=session), desc="step", total=n_steps)
+            for features, labels in pbar:
                 pred = model(features)
                 
                 loss = loss(pred, labels)
                 loss.backward()
                 
                 optimiser.step()
-
-# mini test run
-model = Default(
-    default_config.keys,
-    default_config.delays,
-    default_config.mouse_space,
-    default_config.window_space,
-)
-
-train(model, 5, 3E-6)      
+                
+                pbar.set_description(f"loss: {loss.value}")  
             
             
