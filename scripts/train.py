@@ -1,5 +1,6 @@
 import torch
 from src.train.train import train_loop, default_config
+from src.utils import new_log, Log
 from src.model.model import Default
 from src import utils
 
@@ -14,6 +15,8 @@ if __name__ == "__main__":
         default_config.window_space,
     )
     
+    log = new_log("test", default_config)
+    
     print(f"Model Size: {model.get_size()}")
     
-    train_loop(model, 5, 3e-5, device=torch.device("cpu"))
+    train_loop(model, 5, 3e-3, device=torch.device("cpu"), log=log)

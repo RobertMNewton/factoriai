@@ -1,3 +1,4 @@
+import os
 import torch
 from torch import nn, Tensor
 from torch.nn import Module
@@ -85,6 +86,17 @@ class Model(Module):
                 self.mouse_network.get_size(),
             ]
         )
+        
+    def save(self, session: str, name: str = "ckpt", dir: str = "runs") -> None:
+        path = f"{dir}/{session}/{name}.pt"
+        
+        tmp = ""
+        for dir in path.split("/")[:-1]:
+            tmp += "/" + dir
+            if not os.path.exists(tmp):
+                os.mkdir(tmp)
+                
+        torch.save(self.state_dict(), path)
 
 
 def _default_networks_from(

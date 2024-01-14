@@ -1,6 +1,7 @@
 from .data_loader import load_data, get_sessions, get_n_steps
 from .data_loader import RMB, LMB, SCROLL
 from ..model.model import Model, Default
+from .logger import Log, new_entry
 
 from .. import utils
 
@@ -38,14 +39,14 @@ class Config(BaseModel):
 
 default_config = Config(
     keys=["a", "w", "s", "d", "e", "c", "z", "shift", RMB, LMB, None],
-    delays=list(range(25, 275, 25)),
+    delays=list(range(10, 260, 10)),
     scrolls=list(range(-5, 6)),
     mouse_space=(384, 384),
     window_space=(400, 400),
     dtype="float32"
 )
 
-def train_loop(model: Model, epochs: int, lr: float, optimiser: Optimizer = optim.Adam, config: Config = default_config, dir="data", device = None, criterion: nn.Module = nn.MSELoss(), verbose: bool = True) -> None:
+def train_loop(model: Model, epochs: int, lr: float, optimiser: Optimizer = optim.Adam, config: Config = default_config, dir="data", device = None, criterion: nn.Module = nn.MSELoss(), verbose: bool = True, log: Optional[Log] = None, chkpt_steps: int = 20) -> None:
     """
     Trains model in place
     """
@@ -76,6 +77,7 @@ def train_loop(model: Model, epochs: int, lr: float, optimiser: Optimizer = opti
     
     for epoch in range(epochs):
         last_labels = None
+        step = 0
         for si, session in enumerate(sessions):
             model.reset_memory()
             pbar = tqdm(get_data(session=session), desc="step", total=n_steps)
@@ -100,7 +102,22 @@ def train_loop(model: Model, epochs: int, lr: float, optimiser: Optimizer = opti
                     optimiser.step()
                     
                     pbar.set_description(f"loss: {loss}")
+                    
+                    if log is not None:
+                        log.add_entry(
+                            new_entry(
+                                step,
+                                epoch,
+                                loss=loss
+                            )
+                        )
                 
-                last_labels = labels  
+                step  += 1
+                last_labels = labels 
+                
+                if step % chkpt_steps == 0 and log is not None:
+                    log.save()
+                    model.save(log.session)
+                 
             
             
