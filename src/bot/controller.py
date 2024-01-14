@@ -56,9 +56,17 @@ class Controller:
         """
         for event in events:
             key, delay, pos = event
-            Timer(delay/1000, self.trigger_event, key, pos).start()
+            pos = _map_mouse_to_window(pos, self.mouse_space, self.window_space)
+            
+            Timer(delay/1000, self.trigger_event, key, pos).start()  # might change this later to have a dedicated thread pool instead of thread spawning like this!
         
-        
+    def release(self) -> None:
+        """
+        Releases all currently active keys. This is useful to 'reset' the bot.
+        """
+        for key, active in self.active_keys.items():
+            if active:
+                self.keyboard_controller.release(key)
         
         
     
