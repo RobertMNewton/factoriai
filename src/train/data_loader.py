@@ -257,7 +257,7 @@ def load_data(session: List[str], keys: List[str], delays: List[int], scrolls: l
                     dir=dir
                     )
                 
-                yield load_screenshot(session_id, event_ts, device=device, dtype=dtype, dir=dir), embed_events(events, key_map, delay_map, mouse_space, device=device, dtype=dtype)
+                yield load_screenshot(session_id, screenshot_ts, device=device, dtype=dtype, dir=dir), embed_events(events, key_map, delay_map, mouse_space, device=device, dtype=dtype)
                 last_ts, event_ts = screenshot_ts, next(event_ts_iter)
             else:
-                yield load_screenshot(session_id, event_ts, device=device, dtype=dtype, dir=dir), []
+                yield load_screenshot(session_id, screenshot_ts, device=device, dtype=dtype, dir=dir), []

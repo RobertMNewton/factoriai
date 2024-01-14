@@ -93,8 +93,8 @@ class Model(Module):
         tmp = ""
         for dir in path.split("/")[:-1]:
             tmp += "/" + dir
-            if not os.path.exists(tmp):
-                os.mkdir(tmp)
+            if not os.path.exists(tmp[1:]):
+                os.mkdir(tmp[:1])
                 
         torch.save(self.state_dict(), path)
 

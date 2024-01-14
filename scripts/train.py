@@ -1,6 +1,6 @@
 import torch
 from src.train.train import train_loop, default_config
-from src.utils import new_log, Log
+from src.train.logger import new_log, Log
 from src.model.model import Default
 from src import utils
 

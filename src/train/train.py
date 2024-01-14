@@ -1,7 +1,6 @@
 from .data_loader import load_data, get_sessions, get_n_steps
-from .data_loader import RMB, LMB, SCROLL
 from ..model.model import Model, Default
-from .logger import Log, new_entry
+from .logger import Log, new_entry, Config, default_config
 
 from .. import utils
 
@@ -15,38 +14,7 @@ from tqdm import tqdm
 from functools import partial
 
 
-class Config(BaseModel):
-    keys: List[Optional[str]]
-    delays: List[int]
-    scrolls: List[int]
-    mouse_space: Tuple[int, int]
-    window_space: Tuple[int, int]
-    dtype: str = "float64"
-    
-    def __init__(self, **data) -> None:
-        super(Config, self).__init__(**data)
-        
-        for scroll in self.scrolls:
-            self.keys.append(f"{SCROLL}{scroll}")
-            
-    def get_dtype(self) -> torch.dtype:
-        match self.dtype:
-            case "float64":
-                return torch.float64
-            case "float32":
-                return torch.float32
-    
-
-default_config = Config(
-    keys=["a", "w", "s", "d", "e", "c", "z", "shift", RMB, LMB, None],
-    delays=list(range(10, 260, 10)),
-    scrolls=list(range(-5, 6)),
-    mouse_space=(384, 384),
-    window_space=(400, 400),
-    dtype="float32"
-)
-
-def train_loop(model: Model, epochs: int, lr: float, optimiser: Optimizer = optim.Adam, config: Config = default_config, dir="data", device = None, criterion: nn.Module = nn.MSELoss(), verbose: bool = True, log: Optional[Log] = None, chkpt_steps: int = 20) -> None:
+def train_loop(model: Model, epochs: int, lr: float, optimiser: Optimizer = optim.Adam, config: Config = default_config, dir="data", device = None, criterion: nn.Module = nn.MSELoss(), verbose: bool = True, log: Optional[Log] = None, chkpt_steps: int = 10) -> None:
     """
     Trains model in place
     """
@@ -77,7 +45,7 @@ def train_loop(model: Model, epochs: int, lr: float, optimiser: Optimizer = opti
     
     for epoch in range(epochs):
         last_labels = None
-        step = 0
+        step, running_loss = 0, 0
         for si, session in enumerate(sessions):
             model.reset_memory()
             pbar = tqdm(get_data(session=session), desc="step", total=n_steps)
@@ -98,17 +66,18 @@ def train_loop(model: Model, epochs: int, lr: float, optimiser: Optimizer = opti
                         loss = sum(criterion(pred, label) for pred, label in zip(preds, last_labels + [end_token_labels]))
                     
                     loss.backward()
+                    running_loss += loss
                     
                     optimiser.step()
                     
-                    pbar.set_description(f"loss: {loss}")
+                    pbar.set_description(f"loss: {loss / step}")
                     
                     if log is not None:
                         log.add_entry(
                             new_entry(
                                 step,
                                 epoch,
-                                loss=loss
+                                loss=running_loss/step
                             )
                         )
                 
