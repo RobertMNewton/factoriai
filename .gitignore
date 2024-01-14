@@ -16,3 +16,9 @@ data/.DS_Store
 .VSCodeCounter/2024-01-13_22-13-32/results.md
 .VSCodeCounter/2024-01-13_22-13-32/results.txt
 data/.DS_Store
+.DS_Store
+data/.DS_Store
+src/model/__pycache__/model.cpython-310.pyc
+src/model/__pycache__/modules.cpython-310.pyc
+src/train/__pycache__/data_loader.cpython-310.pyc
+src/train/__pycache__/train.cpython-310.pyc
