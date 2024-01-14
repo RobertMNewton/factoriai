@@ -193,7 +193,24 @@ def embed_event(event: Tuple[Optional[str], int, Tuple[int, int]], key_space: Di
     mouse_embedding = torch.zeros(mouse_space, device=device, dtype=dtype)
     mouse_embedding[mx, my] = 1.0
     
-    return keystroke_embedding, delay_embedding, mouse_embedding
+    return keystroke_embedding, delay_embedding, mouse_embedding.unsqueeze(0)
+
+def embed_events(events: List[Tuple[Optional[str], int, Tuple[int, int]]], key_space: Dict[str, int], delay_space: Dict[int, int], mouse_space: Tuple[int, int], device: torch.device, dtype: torch.dtype = torch.float64) -> List[Tensor]:
+    """
+    Embeds events
+    """
+    events = [embed_event(event, key_space, delay_space, mouse_space, device=device, dtype=dtype) for event in events]
+    
+    keystroke_embedding, delay_embedding, mouse_embedding = [], [], []
+    for event in events:
+        keystroke, delay, mouse = event
+        
+        keystroke_embedding.append(keystroke.unsqueeze(0))
+        delay_embedding.append(delay.unsqueeze(0))
+        mouse_embedding.append(mouse.unsqueeze(0))
+        
+    return [torch.cat(keystroke_embedding, dim=0), torch.cat(delay_embedding, dim=0), torch.cat(mouse_embedding, dim=0)]
+    
 
 
 def get_n_steps(sessions: List[List[str]], dir="data") -> int:
@@ -231,7 +248,7 @@ def load_data(session: List[str], keys: List[str], delays: List[int], scrolls: l
                 events = load_events(
                     session_id,
                     event_ts,
-                    last_ts,
+                    event_ts - meta_data["fps"],
                     keys,
                     delays,
                     scrolls,
@@ -240,7 +257,7 @@ def load_data(session: List[str], keys: List[str], delays: List[int], scrolls: l
                     dir=dir
                     )
                 
-                yield load_screenshot(session_id, event_ts, device=device, dtype=dtype, dir=dir), [embed_event(event, key_map, delay_map, mouse_space, device=device, dtype=dtype) for event in events]
+                yield load_screenshot(session_id, event_ts, device=device, dtype=dtype, dir=dir), embed_events(events, key_map, delay_map, mouse_space, device=device, dtype=dtype)
                 last_ts, event_ts = screenshot_ts, next(event_ts_iter)
             else:
                 yield load_screenshot(session_id, event_ts, device=device, dtype=dtype, dir=dir), []

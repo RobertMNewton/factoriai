@@ -14,4 +14,6 @@ if __name__ == "__main__":
         default_config.window_space,
     )
     
+    print(f"Model Size: {model.get_size()}")
+    
     train_loop(model, 5, 3e-5, device=torch.device("cpu"))

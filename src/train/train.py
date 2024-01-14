@@ -81,21 +81,19 @@ def train_loop(model: Model, epochs: int, lr: float, optimiser: Optimizer = opti
             pbar = tqdm(get_data(session=session), desc="step", total=n_steps)
             for features, labels in pbar:
                 if last_labels is not None:    
-                    preds = model(features, train=len(last_labels)+1)
+                    num_tokens = last_labels[0].shape[0] if len(last_labels) > 0 else 1
+                    preds = model(features, train=num_tokens)
                     
                     loss = None
                     if last_labels == []:
                         loss = criterion(preds[-1], torch.Tensor([[0, 1]]))
                     else: 
-                        end_token_labels = torch.zeros((len(last_labels)+1, 2), device=utils.get_device())
-                        for i in range(len(last_labels)):
+                        end_token_labels = torch.zeros((last_labels[0].shape[0], 2), device=utils.get_device())
+                        for i in range(num_tokens):
                             end_token_labels[i, 0] = 1.0
                         end_token_labels[-1, 1] = 1.0
                         
-                        for pred, label in zip(preds, last_labels + [end_token_labels]):
-                            print(f"p: {pred[0].shape}, l: {label[0].shape}")
-                        
-                        loss = sum(criterion(pred[0], label[0]) for pred, label in zip(preds, last_labels + [end_token_labels]))
+                        loss = sum(criterion(pred, label) for pred, label in zip(preds, last_labels + [end_token_labels]))
                     
                     loss.backward()
                     

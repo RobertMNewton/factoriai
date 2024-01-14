@@ -61,7 +61,7 @@ class NetworkWrapper(Module):
         raise f"{self.__class__} cannot have its output decoded!"
     
     def get_size(self) -> int:
-        return sum(param.numel() for param in self.parameters)
+        return sum(param.numel() for param in self.parameters())
     
 
 class VisionModule(NetworkWrapper):

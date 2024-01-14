@@ -73,6 +73,18 @@ class Model(Module):
             
     def reset_memory(self) -> None:
         self.memory_network.reset_memory()
+        
+    def get_size(self) -> int:
+        return sum(
+            [
+                self.vision_encoder.get_size(),
+                self.memory_network.get_size(),
+                self.action_network.get_size(),
+                self.delay_network.get_size(),
+                self.keystroke_network.get_size(),
+                self.mouse_network.get_size(),
+            ]
+        )
 
 
 def _default_networks_from(
