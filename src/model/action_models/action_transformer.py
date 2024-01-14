@@ -111,7 +111,6 @@ class Mini(ActionTransformer):
             depth=6,
             attn_heads=8,
             mlp_dim=256,
-            decoder_norm=nn.LayerNorm(64),
         )
 
 class Small(ActionTransformer):
