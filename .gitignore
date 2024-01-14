@@ -22,3 +22,4 @@ src/model/__pycache__/model.cpython-310.pyc
 src/model/__pycache__/modules.cpython-310.pyc
 src/train/__pycache__/data_loader.cpython-310.pyc
 src/train/__pycache__/train.cpython-310.pyc
+*.pyc
