@@ -60,7 +60,7 @@ class Model(Module):
             return keystrokes, delays, mouse_positions
     
     
-    def decode(self, actions: List[Tuple[Tensor, Tensor, Tensor]]) -> List[Tuple[List[str], int, Tuple[int, int]]]:
+    def decode(self, actions: List[Tuple[Tensor, Tensor, Tensor]]) -> List[Tuple[str, int, Tuple[int, int]]]:
         res = []
         for action in actions:
             keystrokes, delays, mouse_positions = action
