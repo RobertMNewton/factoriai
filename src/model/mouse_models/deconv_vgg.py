@@ -28,7 +28,7 @@ def _unpooling_layer() -> Module:
 def _vgg_layer(kernel_size: int, feature_channels: int, input_channels: int, depth: int, activation: Module = nn.ReLU, padding: int = 1) -> List[Module]:
     layer = [_unpooling_layer()]
     for i in range(depth):
-        if i == 0 and depth > 1:
+        if i == 0:
             layer.extend(_deconv_layer(kernel_size, input_channels, feature_channels, activation=activation, padding=padding))
         else:
             layer.extend(_deconv_layer(kernel_size, feature_channels, feature_channels, activation=activation, padding=padding))
@@ -96,6 +96,30 @@ class DeconvVGG(Module):
     def get_size(self) -> int:
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
+
+
+class Mini(DeconvVGG):
+    """
+    Mini DeconvVGG that is cpu friendly
+    """
+    # tuples are organised as (kernel_size: int, feature_channels: int, input_channels: int, depth: int)
+    CONFIG = [
+        (3, 1, 8, 1),
+        (3, 8, 16, 2),
+        (3, 16, 32, 2),
+        (3, 32, 64, 2),
+        (3, 64, 64, 2), 
+    ]
+    CONFIG.reverse()
+    def __init__(self, input_dims: int = 256, mlp_feature_dims: int = 256, mlp_output_dims: int = 256, mlp_depth = 2, output_dims: Tuple[int, int] = (400, 400)):
+        super(Mini, self).__init__(
+            *Mini.CONFIG,
+            mlp_feature_dims=mlp_feature_dims,
+            mlp_output_dims=mlp_output_dims,
+            mlp_depth=mlp_depth,
+            input_dims=input_dims,
+            output_dims=output_dims,
+        )
 
 class DeconvVGG11(DeconvVGG):
     # tuples are organised as (kernel_size, feature_channels, input_channels, depth)

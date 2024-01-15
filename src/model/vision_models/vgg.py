@@ -80,6 +80,28 @@ class VGG(Module):
     def get_size(self) -> int:
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
+class Mini(VGG):
+    """
+    Minature VGG (really should be a CNN) that my local desktop can handle without a gpu
+    """
+    # tuples are organised as (kernel_size, input_channels, feature_channels, depth)
+    CONFIG = [
+        (3, 3, 8, 1),
+        (3, 8, 16, 2),
+        (3, 16, 32, 2),
+        (3, 32, 64, 2),
+        (3, 64, 64, 2),
+    ]
+    def __init__(self, mlp_feature_dims: int = 256, mlp_output_dims: int = 256, mlp_depth = 2, input_dims: Tuple[int, int] = (400, 400)):
+        super(Mini, self).__init__(
+            *Mini.CONFIG,
+            mlp_feature_dims=mlp_feature_dims,
+            mlp_output_dims=mlp_output_dims,
+            mlp_depth=mlp_depth,
+            input_dims=input_dims,
+        )
+
+
 
 class VGG11(VGG):
     # tuples are organised as (kernel_size, input_channels, feature_channels, depth)

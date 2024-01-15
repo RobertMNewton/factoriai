@@ -109,12 +109,12 @@ def _default_networks_from(
     action_encoding_size: int,
     peripheral_encoding_size: int,
     memory_size: int = 256,
-    visual_network: Callable = vgg.VGG19,
+    visual_network: Callable = vgg.Mini,
     memory_network: Callable = transformer_memory.Mini,
     action_network: Callable = action_transformer.Mini,
     delay_network: Callable = mlp.BaseDelayClassifier,
     keystroke_network: Callable = mlp.BaseKeystrokeClassifier,
-    mouse_network: Callable = deconv_vgg.DeconvVGG19,
+    mouse_network: Callable = deconv_vgg.Mini,
     ) -> Tuple[VisionModule, MemoryModule, ActionModule, DelayModule, KeystrokeModule, MouseModule]:
     """
     Returns VisionModule, MemoryModule, ActionModule, DelayModule, KeystrokeModule, MouseModule
