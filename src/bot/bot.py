@@ -18,15 +18,24 @@ def _take_screenshot(monitor: int = 1, size: Tuple[int, int] = None) -> None:
 
 
 class Bot:
-    def __init__(self, keys: List[str], mouse_space: Tuple[int, int], visual_space: Tuple[int, int], window_space: Optional[Tuple[int, int]] = None, model: Model = None) -> None:
+    """
+    Links AI to controller and runs game controller.
+    """
+    def __init__(self, model: Model, keys: List[str], mouse_space: Tuple[int, int], visual_space: Tuple[int, int], window_space: Optional[Tuple[int, int]] = None) -> None:
         self.controller = Controller(keys, mouse_space, window_space)
         self.model = model
         self.visual_space = visual_space
         
     def get_observation(self) -> Tensor:
+        """
+        returns observation of game
+        """
         return pil_to_tensor(_take_screenshot(size=self.visual_space))
     
-    def update(self, observation: Optional[Tensor] = None) -> Tuple[Tensor, Tensor, Tensor]:
+    def step(self, observation: Optional[Tensor] = None) -> Tuple[Tensor, Tensor, Tensor]:
+        """
+        Optionally takes observation of game and feeds it into model to produce actions in the game.
+        """
         if observation is None:
             observation = self.get_observation()
         
@@ -36,4 +45,11 @@ class Bot:
         self.controller.schedule_events(action_events)
         
         return action_tensors
+    
+    def step_from(self, action_tensors: List[Tuple[Tensor, Tensor, Tensor]]) -> None:
+        """
+        Performs step given action tensors (this is used for RL phase of training)
+        """
+        action_events = self.model.decode(action_tensors)
+        self.controller.schedule_events(action_events)
     

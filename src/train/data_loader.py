@@ -208,8 +208,11 @@ def embed_events(events: List[Tuple[Optional[str], int, Tuple[int, int]]], key_s
         keystroke_embedding.append(keystroke.unsqueeze(0))
         delay_embedding.append(delay.unsqueeze(0))
         mouse_embedding.append(mouse.unsqueeze(0))
-        
-    return [torch.cat(keystroke_embedding, dim=0), torch.cat(delay_embedding, dim=0), torch.cat(mouse_embedding, dim=0)]
+    
+    if len(keystroke_embedding) > 0:    
+        return [torch.cat(keystroke_embedding, dim=0), torch.cat(delay_embedding, dim=0), torch.cat(mouse_embedding, dim=0)]
+    else:
+        return []
     
 
 

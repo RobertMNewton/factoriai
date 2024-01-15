@@ -48,8 +48,9 @@ def train_loop(model: Model, epochs: int, lr: float, optimiser: Optimizer = opti
         step, running_loss = 0, 0
         for si, session in enumerate(sessions):
             model.reset_memory()
-            pbar = tqdm(get_data(session=session), desc="step", total=n_steps)
-            for features, labels in pbar:
+            # pbar = tqdm(get_data(session=session), desc="step", total=n_steps)
+            # for features, labels in pbar:
+            for features, labels in get_data(session=session):
                 if last_labels is not None:    
                     num_tokens = last_labels[0].shape[0] if len(last_labels) > 0 else 1
                     preds = model(features, train=num_tokens)
@@ -70,7 +71,8 @@ def train_loop(model: Model, epochs: int, lr: float, optimiser: Optimizer = opti
                     
                     optimiser.step()
                     
-                    pbar.set_description(f"loss: {loss / step}")
+                    # bar.set_description(f"loss: {loss / step}")
+                    print(f"epoch: {epoch}, step: {step}, loss: {loss / step}")
                     
                     if log is not None:
                         log.add_entry(
