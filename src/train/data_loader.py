@@ -247,7 +247,7 @@ def load_data(session: List[str], keys: List[str], delays: List[int], scrolls: l
         event_ts_iter = iter(event_ts_l)
         event_ts = next(event_ts_iter)
         for screenshot_ts in screenshot_ts_l:
-            if int(event_ts) - meta_data["fps"]/2 <= int(screenshot_ts) <= int(event_ts) + meta_data["fps"]/2:
+            if event_ts is not None and int(event_ts) - meta_data["fps"]/2 <= int(screenshot_ts) <= int(event_ts) + meta_data["fps"]/2:
                 events = load_events(
                     session_id,
                     event_ts,
@@ -261,6 +261,7 @@ def load_data(session: List[str], keys: List[str], delays: List[int], scrolls: l
                     )
                 
                 yield load_screenshot(session_id, screenshot_ts, device=device, dtype=dtype, dir=dir), embed_events(events, key_map, delay_map, mouse_space, device=device, dtype=dtype)
-                last_ts, event_ts = screenshot_ts, next(event_ts_iter)
+                last_ts, event_ts = screenshot_ts, next(event_ts_iter, None)
             else:
                 yield load_screenshot(session_id, screenshot_ts, device=device, dtype=dtype, dir=dir), []
+    return

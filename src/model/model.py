@@ -60,10 +60,10 @@ class Model(Module):
             return keystrokes, delays, mouse_positions
     
     
-    def decode(self, actions: List[Tuple[Tensor, Tensor, Tensor]]) -> List[Tuple[str, int, Tuple[int, int]]]:
+    def decode(self, actions: Tuple[Tensor, Tensor, Tensor]) -> List[Tuple[str, int, Tuple[int, int]]]:
         res = []
-        for action in actions:
-            keystrokes, delays, mouse_positions = action
+        for i in range(actions[0].shape[0]):
+            keystrokes, delays, mouse_positions = actions[0][i], actions[1][i], actions[2][i]
             res.append(
                 (
                     self.keystroke_network.decode(keystrokes),
@@ -71,6 +71,7 @@ class Model(Module):
                     self.mouse_network.decode(mouse_positions),
                 )
             )
+        return res
             
     def reset_memory(self) -> None:
         self.memory_network.reset_memory()

@@ -4,10 +4,11 @@ from torchvision.transforms.functional import pil_to_tensor
 from .controller import Controller
 from src.model.model import Model
 from typing import List, Tuple, Optional
+from src.utils import get_device
 from PIL import Image
 
 
-def _take_screenshot(monitor: int = 1, size: Tuple[int, int] = None) -> None:
+def _take_screenshot(monitor: int = 1, size: Tuple[int, int] = None) -> Image:
     image = None
     with mss.mss() as sct:
         image = sct.grab(sct.monitors[monitor])
@@ -15,6 +16,8 @@ def _take_screenshot(monitor: int = 1, size: Tuple[int, int] = None) -> None:
     image = Image.frombytes("RGB", image.size, image.bgra, "raw", "BGRX")
     if size is not None:
         image = image.resize(size)
+        
+    return image
 
 
 class Bot:
@@ -38,7 +41,9 @@ class Bot:
         """
         if observation is None:
             observation = self.get_observation()
-        
+        observation = observation.float()
+        observation = observation.to(get_device())
+            
         action_tensors = self.model(observation)
         action_events = self.model.decode(action_tensors)
         

@@ -10,8 +10,11 @@ def _milli() -> int:
     return int(datetime.time() * 1000)
 
 def _map_mouse_to_window(position: Tuple[int, int], mouse_space: Tuple[int, int], wind_space: Tuple[int, int]) -> Tuple[int, int]:
-    x, y, mw, mh, ww, wh = position, mouse_space, wind_space
-    return x * ww/mw, y * wh/mh
+    x, y = position
+    mw, mh = mouse_space
+    ww, wh = wind_space
+    
+    return float(x * ww/mw), float(y * wh/mh)
 
 
 class Controller:
@@ -21,7 +24,7 @@ class Controller:
         self.mouse_space = mouse_space
         
         if window_space is None:
-            monitor = mss().monitors
+            monitor = mss().monitors[1]
             self.window_space = (monitor['left'], monitor['height'])
         else:
             self.window_space = window_space
@@ -35,7 +38,9 @@ class Controller:
         """
         self.mouse_controller.position = mouse_pos
         # check if key is a special char, i.e. scroll or mouse button press
-        if key[:6] == "SCROLL":
+        if key is None:
+            return
+        elif key[:6] == "SCROLL":
             _, dy = 0, int(key[6:])
             self.mouse_controller.scroll(_, dy)
         elif key == "RMB":
@@ -58,7 +63,7 @@ class Controller:
             key, delay, pos = event
             pos = _map_mouse_to_window(pos, self.mouse_space, self.window_space)
             
-            Timer(delay/1000, self.trigger_event, key, pos).start()  # might change this later to have a dedicated thread pool instead of thread spawning like this!
+            Timer(delay/1000, self.trigger_event, [key, pos], {}).start()  # might change this later to have a dedicated thread pool instead of thread spawning like this!
         
     def release(self) -> None:
         """

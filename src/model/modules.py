@@ -94,7 +94,7 @@ class DelayModule(NetworkWrapper):
         
     def decode(self, x: Tensor | Tuple[Tensor]) -> Any:
         _, classification = torch.max(x, dim=-1)
-        return self.delay_map[classification]
+        return self.delay_map[int(classification)]
 
 
 class KeystrokeModule(NetworkWrapper):
@@ -107,7 +107,10 @@ class KeystrokeModule(NetworkWrapper):
         
     def decode(self, x: Tensor | Tuple[Tensor]) -> Any:
         _, classifications = torch.max(x, dim=-1)
-        return [self.key_map[classification] for classification in classifications if classification == 1]
+        if len(classifications.shape) > 1:
+            return [self.key_map[classification] for classification in classifications if classification == 1]
+        else:
+            return self.key_map[int(classifications)]
     
 
 class MouseModule(NetworkWrapper):
@@ -116,6 +119,6 @@ class MouseModule(NetworkWrapper):
     """
     def decode(self, x: Tensor | Tuple[Tensor]) -> Any:
         ys, x = torch.max(x, dim=-1)
-        _, y = torch.max(ys)
+        _, y = torch.max(ys, dim=-1)
         
-        return x[y], y
+        return x[:, y].squeeze(0), y
