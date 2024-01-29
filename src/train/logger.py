@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from enum import Enum
 from datetime import datetime
 from typing import Optional, List, Tuple
+from src.config import Config
 
 class LogEntry(BaseModel):
     step: int

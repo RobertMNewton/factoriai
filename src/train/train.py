@@ -1,6 +1,7 @@
 from .data_loader import load_data, get_sessions, get_n_steps
 from ..model.model import Model, Default
-from .logger import Log, new_entry, Config, default_config
+from .logger import Log, new_entry
+from src.config import Config, default_config
 
 from .. import utils
 
@@ -14,7 +15,7 @@ from tqdm import tqdm
 from functools import partial
 
 
-def train_loop(model: Model, epochs: int, lr: float, optimiser: Optimizer = optim.Adam, config: Config = default_config, dir="data", device = None, criterion: nn.Module = nn.MSELoss(), verbose: bool = True, log: Optional[Log] = None, chkpt_steps: int = 10, reset_steps: Optional[int] = None) -> None:
+def train_loop(model: Model, epochs: int, lr: float, optimiser: Optimizer = optim.Adam, config: Config = default_config, dir="data", device = None, criterion: nn.Module = nn.MSELoss(), verbose: bool = True, log: Optional[Log] = None, chkpt_steps: int = 10, reset_steps: Optional[int] = None, skip_still_frames: bool = False) -> None:
     """
     Trains model in place
     """
@@ -59,11 +60,19 @@ def train_loop(model: Model, epochs: int, lr: float, optimiser: Optimizer = opti
             for features, labels in get_data(session=session):
                 if started:
                     if last_labels is not None:    
+                        torch.cuda.empty_cache()
+                        
+                        if reset_steps is not None and step % reset_steps == 0:
+                            model.reset_memory()
+                        
                         num_tokens = last_labels[0].shape[0] if len(last_labels) > 0 else 1
                         preds = model(features, train=num_tokens)
                         
                         loss = None
                         if last_labels == []:
+                            if skip_still_frames:
+                                step += 1
+                                continue
                             loss = criterion(preds[-1], torch.Tensor([[0, 1]]))
                         else: 
                             end_token_labels = torch.zeros((last_labels[0].shape[0], 2), device=utils.get_device())
@@ -78,11 +87,6 @@ def train_loop(model: Model, epochs: int, lr: float, optimiser: Optimizer = opti
                         
                         optimiser.step()
                         optimiser.zero_grad()
-                        
-                        torch.cuda.empty_cache()
-                        
-                        if reset_steps is not None and step % reset_steps == 0:
-                            model.reset_memory()
                         
                         # bar.set_description(f"loss: {loss / step}")
                         print(f"epoch: {epoch}, step: {step}, loss: {loss:.5f}")

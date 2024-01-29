@@ -37,4 +37,4 @@ if __name__ == "__main__":
     
     print(f"Model Size: {model.get_size()}")
     
-    train_loop(model, 5, 6e-5, device=torch.device("cpu"), log=log, reset_steps=250)
+    train_loop(model, 10, 3E-5, device=torch.device("cpu"), log=log, reset_steps=160, skip_still_frames=True)

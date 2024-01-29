@@ -37,7 +37,7 @@ class Model(Module):
         self.keystroke_network = keystroke_network
         self.mouse_network = mouse_networks
     
-    def forward(self, image: Tensor, train: Optional[int] = None, max_actions: int = 50) -> Tuple[Tensor, Tensor, Tensor]:
+    def forward(self, image: Tensor, train: Optional[int] = None, max_actions: int = 50, min_actions: int = 5) -> Tuple[Tensor, Tensor, Tensor]:
         """
         Returns keystrokes, delays and mouse_positions encoded probabilistically as action tensors that can be decoded
         for scheduling bot actions.
@@ -46,7 +46,7 @@ class Model(Module):
         """
         image_enc: Tensor = self.vision_encoder(image)
         memory_enc: Tensor = self.memory_network(image_enc)
-        actions, end_token_prob = self.action_network(memory_enc, train=train, max_tokens=max_actions)
+        actions, end_token_prob = self.action_network(memory_enc, train=train, max_tokens=max_actions, min_tokens=min_actions)
         
         keystrokes, keystroke_encs = self.keystroke_network(actions)
         delays, delay_encs = self.delay_network(keystroke_encs)

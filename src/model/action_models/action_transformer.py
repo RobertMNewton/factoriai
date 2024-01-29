@@ -66,7 +66,7 @@ class ActionTransformer(Module):
         
         self.start_token = nn.Parameter(torch.rand((1, hidden_feature_dim)), requires_grad=True)
         
-    def forward(self, feature: Tensor, train: Optional[int] = None, max_tokens: int = 20) -> Tuple[Tensor, Tensor]:
+    def forward(self, feature: Tensor, train: Optional[int] = None, max_tokens: int = 20, min_tokens: int = 5) -> Tuple[Tensor, Tensor]:
         """
         Action Transformer forward function. Train is an optional integer representing number of actions to sample. If 
         left as None, then will sample until reaches max_tokens or end_token classifier indicates to.
@@ -80,13 +80,13 @@ class ActionTransformer(Module):
         
         actions = torch.clone(self.start_token)    
         try:
-            for _ in range(max_tokens):
+            for token_num in range(max_tokens):
                 
                 actions = torch.cat((actions, self.decoder(actions, actions)[-1].unsqueeze(0)), dim=0)
                 
                 if train is None:
                     probs = f.sigmoid(self.linear_projection_out(actions)[-1, -2:])
-                    if probs[1] > probs[0]:
+                    if token_num > min_tokens and probs[1] > probs[0]:
                         raise BreakLoop
         except BreakLoop:
             pass
